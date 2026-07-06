@@ -1,0 +1,3127 @@
+
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>نظام تقييم الطلاب ومتابعة السرد القرآني</title>
+    <link href="https://fonts.googleapis.com/css2?family=Amiri+Quran&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --p: #2c3e50; --s: #27ae60; --d: #e74c3c; --a: #2980b9; --bg: #f8f9fa;
+            --quran-bg: #fdf6e3; --hifz-btn: #e67e22; --tajweed-btn: #8e44ad;
+            --bonus-btn: #1abc9c; 
+        }
+        
+        body { font-family: 'Segoe UI', Tahoma, sans-serif; background: var(--bg); margin: 0; padding: 0; direction: rtl; overflow-x: hidden; font-size: 14px; }
+        
+        /* تمديد الهامش السفلي للكونتينر ليتناسب مع شبكة الأزرار الثابتة لتجنب تداخل المحتوى */
+        .container { max-width: 100%; margin: auto; background: white; min-height: 100vh; padding-bottom: 280px; position: relative; }
+
+        /* التنقل */
+        .nav-tabs { display: flex; background: var(--p); position: sticky; top: 0; z-index: 1000; height: 50px; box-shadow: 0 2px 5px rgba(0,0,0,0.2); }
+        .nav-tabs button { background: transparent; border: none; padding: 0 5px; color: #adb5bd; cursor: pointer; font-weight: bold; flex: 1; font-size: 13px; }
+        .nav-tabs button.active { color: white; border-bottom: 4px solid var(--s); background: rgba(255,255,255,0.1); }
+
+        .page { display: none; padding: 12px; }
+        .active-page { display: block; }
+
+        /* شريط الطالب */
+        .student-selector-strip { display: flex; flex-direction: column; gap: 10px; background: #fff; padding: 12px; border-bottom: 2px solid #eee; }
+        .nav-arrow { background: var(--a); color: white; border: none; padding: 10px 15px; border-radius: 8px; cursor: pointer; font-size: 18px; }
+        .student-dropdown { flex-grow: 1; padding: 10px; font-size: 16px; border-radius: 8px; border: 2px solid var(--a); font-weight: bold; color: var(--p); }
+
+        /* منطقة القرآن والمعاني - تفعيل المرونة وإلغاء شريطي التمرير */
+        .quran-center { 
+            background: var(--quran-bg); 
+            border: 2px solid #d4c4a8; 
+            border-radius: 16px; 
+            padding: 15px; 
+            min-height: 300px; 
+            margin-bottom: 12px; 
+            position: relative; 
+            padding-bottom: 80px;
+            box-shadow: inset 0 2px 8px rgba(0,0,0,0.05), 0 4px 15px rgba(0,0,0,0.06);
+            transition: all 0.3s ease-in-out;
+            
+            /* إلغاء ازدواجية السكرول والسماح لصفحة المتصفح بالتمرير الطبيعي الموحد */
+            overflow: visible !important;
+            scroll-behavior: smooth;
+            -webkit-overflow-scrolling: touch;
+        }
+        
+        /* وضع ملء ثلاثة أرباع الصفحة المرن للتسميع الفعلي بدون شريط تمرير داخلي */
+        .quran-center.fullscreen-mode {
+            height: auto !important;
+            min-height: 60vh !important;
+            overflow: visible !important;
+            margin-bottom: 15px;
+        }
+
+        .quran-text { 
+            font-family: 'Amiri Quran', serif; 
+            font-size: 2.1em; 
+            line-height: 1.8; 
+            text-align: center; 
+            color: #2c3e50; 
+            text-shadow: 0 1px 1px rgba(255,255,255,0.8);
+            word-break: normal;
+            word-wrap: break-word;
+            overflow-wrap: break-word;
+            padding: 5px;
+            padding-bottom: 50px; /* ضمان إعطاء السطور الأخيرة مساحة مريحة للصعود فوق نهاية الصندوق */
+        }
+        .q-info { font-size: 13px; color: #856404; text-align: center; background: #fcf3cf; padding: 8px; border-radius: 8px; margin-bottom: 12px; font-weight: bold; border: 1px solid #ffeeba; }
+
+        /* نافذة الإعادة (يعاد) - أسفل الشاشة */
+        .retest-bottom-banner {
+            position: absolute; bottom: 0; left: 0; right: 0;
+            background: rgba(231, 76, 60, 0.95); z-index: 100;
+            display: flex; align-items: center; justify-content: center;
+            padding: 10px;
+            box-shadow: 0 -4px 10px rgba(0,0,0,0.2);
+            animation: slideUpPulse 1.5s infinite;
+        }
+        .retest-text { font-size: 20px; font-weight: 900; color: white; letter-spacing: 2px; }
+        @keyframes slideUpPulse { 
+            0% { transform: scale(1); background: rgba(231, 76, 60, 0.9); } 
+            50% { transform: scale(1.02); background: rgba(192, 57, 43, 1); } 
+            100% { transform: scale(1); background: rgba(231, 76, 60, 0.9); } 
+        }
+
+        /* لوحة التقييم السفلية الثابتة والمريحة */
+        .fixed-eval-pad { 
+            position: fixed; bottom: 0; left: 0; right: 0; background: #ffffff; 
+            box-shadow: 0 -4px 20px rgba(0,0,0,0.18); z-index: 2000; 
+            border-top: 3px solid #ccc;
+            border-radius: 16px 16px 0 0;
+            padding: 12px 10px 15px 10px; display: flex; flex-direction: column; gap: 8px;
+            height: auto;
+        }
+        
+        /* شبكة الأزرار المتراصة */
+        .pad-row { 
+            display: flex; 
+            flex-wrap: wrap; 
+            gap: 6px; 
+            padding: 2px; 
+            justify-content: center;
+        }
+
+        /* أزرار التقييم - تم تصغيرها لتشمل العبارة فقط وتظهر واضحة بدون الدرجة المنقصة */
+        .pad-btn { 
+            flex: 0 1 auto; /* الالتفاف الطبيعي حول الكلمات فقط */
+            width: auto;
+            min-width: 60px;
+            max-width: none;
+            min-height: 28px;
+            border: none; 
+            color: white; 
+            padding: 4px 10px; 
+            border-radius: 6px; 
+            font-weight: bold; 
+            cursor: pointer; 
+            text-align: center; 
+            display: inline-flex; 
+            align-items: center; 
+            justify-content: center;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            transition: transform 0.1s ease;
+        }
+        .pad-btn:active { transform: scale(0.95); }
+        
+        .pad-btn span { 
+            font-size: 11px !important; 
+            white-space: nowrap; 
+            text-align: center;
+            flex-grow: 1;
+            display: block;
+            font-weight: bold;
+        }
+        .score-display { 
+            position: absolute; 
+            top: -22px; 
+            left: 50%; 
+            transform: translateX(-50%); 
+            background: var(--d); 
+            color: white; 
+            padding: 2px 14px; 
+            border-radius: 12px; 
+            font-weight: bold; 
+            font-size: 13px; 
+            box-shadow: 0 2px 6px rgba(0,0,0,0.15); 
+            border: 1.5px solid white; 
+            z-index: 2001;
+        }
+
+        /* قوائم المفردات والتفسير */
+        .vocab-list { display: flex; flex-direction: column; gap: 15px; margin-top: 10px; }
+        .vocab-item { background: #fff; padding: 15px; border-radius: 10px; border-right: 6px solid var(--a); box-shadow: 0 2px 6px rgba(0,0,0,0.1); }
+        .vocab-meta { font-size: 12px; margin-bottom: 8px; font-weight: bold; }
+        .vocab-word { font-weight: bold; margin-bottom: 12px; font-family: 'Amiri Quran', serif; line-height: 1.8; }
+        .vocab-meaning { font-size: 1.1em; line-height: 1.6; padding: 10px; border-radius: 6px; border: 1px solid #eee; }
+
+        /* الجداول والإعدادات */
+        table { width: 100%; border-collapse: collapse; font-size: 13px; margin-bottom: 20px; }
+        th, td { border: 1px solid #ddd; padding: 8px; text-align: center; }
+        th { background: var(--p); color: white; }
+        .settings-card { background: #f9f9f9; padding: 15px; border-radius: 10px; border: 1px solid #eee; margin-bottom: 15px; }
+        input, select, textarea { padding: 10px; border: 1px solid #ccc; border-radius: 8px; width: 100%; box-sizing: border-box; font-size: 15px; margin: 5px 0; }
+        
+        /* الأزرار العامة */
+        .btn-main { background: var(--s); color: white; border: none; padding: 12px; border-radius: 8px; width: 100%; font-size: 15px; cursor: pointer; font-weight: bold; box-shadow: 0 2px 5px rgba(0,0,0,0.2); }
+        .btn-secondary { background: var(--a); color: white; border: none; padding: 10px; border-radius: 8px; font-size: 13px; cursor: pointer; font-weight: bold; }
+
+        /* شبكة مربعات السرد الطلابي */
+        .sard-dashboard-grid { 
+            display: grid; 
+            grid-template-columns: repeat(auto-fill, minmax(135px, 1fr)); 
+            gap: 12px; 
+            margin-top: 15px; 
+        }
+        .sard-student-box {
+            padding: 15px;
+            border-radius: 10px;
+            text-align: center;
+            font-weight: bold;
+            font-size: 13px;
+            cursor: pointer;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.06);
+            transition: all 0.2s ease;
+            user-select: none;
+            border: 2px solid #ddd;
+            background: #ffffff;
+            color: #2c3e50;
+        }
+        .sard-student-box:active { transform: scale(0.95); }
+        .sard-student-box.passed { background: var(--s) !important; color: white !important; border-color: var(--s) !important; }
+        .sard-student-box.failed { background: var(--d) !important; color: white !important; border-color: var(--d) !important; }
+        .sard-student-box.testing { background: var(--a) !important; color: white !important; border-color: var(--p) !important; border-style: dashed !important; animation: pulseBlue 1.5s infinite; }
+        .sard-student-box.not-yet { background: #ffffff !important; color: #333 !important; border-color: #ddd !important; }
+
+        /* حالة السرد المعلق */
+        .sard-student-box.paused-sard { 
+            background: #e67e22 !important; 
+            color: white !important; 
+            border-color: #d35400 !important; 
+        }
+
+        @media (max-width: 600px) {
+            .quran-text {
+                font-size: 1.6em !important;
+                line-height: 1.65 !important;
+            }
+            .pad-btn {
+                min-width: 50px !important;
+                font-size: 10.5px !important;
+                padding: 4px 6px !important;
+            }
+            .pad-btn span {
+                font-size: 10px !important;
+            }
+            .score-display {
+                font-size: 11px !important;
+                padding: 2px 10px !important;
+            }
+            .container {
+                padding-bottom: 300px !important;
+            }
+            .sard-dashboard-grid {
+                grid-template-columns: repeat(auto-fill, minmax(105px, 1fr)) !important;
+                gap: 8px !important;
+                margin-top: 10px !important;
+            }
+            .sard-student-box {
+                padding: 10px 5px !important;
+                font-size: 11.5px !important;
+                border-radius: 8px !important;
+                border-width: 1.5px !important;
+            }
+            .sard-student-box div {
+                font-size: 11.5px !important;
+            }
+            .nav-tabs button {
+                font-size: 11.5px !important;
+                padding: 0 2px !important;
+            }
+        }
+
+        @media print {
+            body { background: white; font-size: 14px; }
+            .nav-tabs, .student-selector-strip, .fixed-eval-pad, 
+            .btn-secondary, .btn-main, .del-btn, textarea, select, .no-print, h3, .committee-header { 
+                display: none !important; 
+            }
+            .container { padding: 0; box-shadow: none; min-height: auto; }
+            .print-header { display: block !important; text-align: center; font-size: 24px; font-weight: bold; margin-bottom: 25px; color: black; border-bottom: 2px solid #000; padding-bottom: 15px; }
+            table { border: 2px solid #000; width: 100%; font-size: 16px; margin-top: 10px; margin-bottom: 30px; }
+            th, td { border: 1px solid #000 !important; color: #000 !important; padding: 12px; }
+            th { background-color: #e0e0e0 !important; -webkit-print-color-adjust: exact; color: #000; font-size: 18px; }
+            .table-title { background: none; border: none; font-size: 18px; margin-top: 30px; text-decoration: underline; }
+            .print-status { display: inline-block; font-size: 14px; margin-right: 5px; }
+        }
+    </style>
+</head>
+<body>
+
+<!-- واجهة المنبثقات المخصصة الآمنة والمستقلة عن المتصفح لمعالجة حظر مواقع جوجل -->
+<div id="customModal" style="display:none; position:fixed; top:0; left:0; right:0; bottom:0; background:rgba(0,0,0,0.6); z-index:9999; justify-content:center; align-items:center; padding:15px; direction:rtl;">
+    <div style="background:white; border-radius:12px; max-width:400px; width:100%; box-shadow:0 10px 25px rgba(0,0,0,0.3); overflow:hidden; animation: fadeIn 0.25s ease;">
+        <div id="customModalTitle" style="background:var(--p); color:white; padding:15px; font-weight:bold; font-size:16px; text-align:center;">تأكيد الإجراء</div>
+        <div style="padding:20px;">
+            <div id="customModalBody" style="font-size:14px; color:#333; margin-bottom:15px; text-align:center; line-height:1.6;"></div>
+            <input type="text" id="customModalInput" style="display:none; width:100%; padding:10px; border:1px solid #ccc; border-radius:8px; box-sizing:border-box; font-size:15px; margin-bottom:15px; text-align:center;">
+            <div style="display:flex; gap:10px; justify-content:center; margin-top:15px;">
+                <button id="customModalConfirm" class="btn-secondary" style="background:var(--s); flex:1; padding:10px; font-size:14px;">تأكيد</button>
+                <button id="customModalCancel" class="btn-secondary" style="background:var(--d); flex:1; padding:10px; font-size:14px;">إلغاء</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- شريط الإشعارات والتحذيرات اللحظي المدمج -->
+<div id="customToast" style="display:none; position:fixed; top:20px; left:50%; transform:translateX(-50%); background:var(--a); color:white; padding:12px 25px; border-radius:30px; font-weight:bold; font-size:14px; box-shadow:0 5px 15px rgba(0,0,0,0.2); z-index:10000; text-align:center; transition: opacity 0.4s ease; max-width:90%; box-sizing:border-box;"></div>
+
+<div class="container">
+    <div class="nav-tabs" id="mainNavTabs">
+        <button onclick="openTab('tabLogin')" id="btnTabLogin" class="active">🏠 الدخول</button>
+        <button onclick="openTab('tabSardDashboard')" id="btnTabSardDashboard">📋 السرد الطلابي</button>
+        <button onclick="openTab('tabEval')" id="btnTabEval">📝 التقييم</button>
+        <button onclick="openTab('tabResults')" id="btnTabResults">📊 النتائج</button>
+        <button onclick="openTab('tabSettings')" id="btnTabSettings">⚙️ الإعدادات</button>
+    </div>
+
+    <!-- مؤشر المزامنة التلقائية السحابية الصامتة على غرار نظام الوقت والمسؤولية -->
+    <div id="sync-indicator" style="display:none; background: #e8f8f5; color: #117a65; padding: 8px 15px; font-size: 12px; text-align: center; border-bottom: 1px solid #a3e4d7; font-weight: bold; align-items: center; justify-content: center; gap: 8px; direction: rtl;">
+        <span style="display:inline-block; width:8px; height:8px; border-radius:50%; background-color:#2ecc71; animation: pulse 1.5s infinite;"></span>
+        <span id="sync-indicator-text">جاري مزامنة السحاب...</span>
+    </div>
+
+    <!-- الدخول الآمن والمباشر -->
+    <div id="tabLogin" class="page active-page">
+        <div style="max-width: 400px; margin: auto; padding-top: 10px;">
+            <h2 style="text-align: center; color: var(--p);">بوابة الدخول الآمن للنظام</h2>
+            
+            <label style="font-weight: bold;">اسم المستخدم للدخول:</label>
+            <input type="text" id="loginUsernameInput" placeholder="أدخل اسم المستخدم">
+
+            <label style="font-weight: bold; margin-top: 15px; display: block;">رقم المرور (الرقم السري):</label>
+            <input type="password" id="loginPasswordInput" placeholder="أدخل الرقم السري">
+
+            <!-- خيار نطاق الدخول: المجموعات أو الكل -->
+            <label style="font-weight: bold; margin-top: 15px; display: block;">نطاق صلاحية إدارة التقييم:</label>
+            <select id="loginScopeSelect" onchange="toggleLoginScope()" class="student-dropdown" style="margin: 5px 0; border: 1px solid #ccc; font-weight: bold;">
+                <option value="group">إدارة وعرض حلقة محددة فقط</option>
+                <option value="all" selected>إستعراض وإدارة جميع الحلقات والطلاب معاً (صلاحية كاملة)</option>
+            </select>
+            
+            <div id="loginGroupSelectContainer" style="display:none;">
+                <label style="font-weight: bold; margin-top: 15px; display: block;">اختر المجموعة / الحلقة المتاحة:</label>
+                <select id="loginGroupSelect" class="student-dropdown" style="margin: 5px 0; border: 1px solid #ccc; font-weight: bold;"></select>
+            </div>
+
+            <div style="display: flex; flex-direction: column; gap: 10px; margin-top: 25px;">
+                <button class="btn-main" onclick="processLogin()" style="background: var(--p);">تسجيل الدخول إلى النظام</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- لوحة السرد الطلابي التفاعلية -->
+    <div id="tabSardDashboard" class="page">
+        <div class="settings-card" style="border: 2px solid var(--s); background: #f4fbf7; margin-bottom: 20px;">
+            <h3 style="margin-top:0; color: var(--p);">📋 لوحة السرد الطلابي للطلاب</h3>
+            <p style="font-size: 13px; color: #7f8c8d; margin-top: -5px;">توضح هذه اللوحة حالة التسميع اليوم لطلاب الحلقة قبل البدء بالتقييم: <br>
+                ⚪ <strong>مربع أبيض:</strong> لم يسرد بعد. | 🟢 <strong>مربع أخضر:</strong> سرد بنجاح اليوم. | 🔴 <strong>مربع أحمر:</strong> لم يتمكن من السرد. | 🔵 <strong>مربع أزرق:</strong> جاري الامتحان الآن (قفل حماية المعلمين). | 🟠 <strong>مربع برتقالي:</strong> لديه سرد معلّق قابل للاستئناف. <br>
+                <strong>انقر فوق اسم أي طالب لنقله فوراً وبدء السرد والتقييم له.</strong>
+            </p>
+            <div class="sard-dashboard-grid" id="sardDashboardGrid"></div>
+        </div>
+    </div>
+
+    <!-- التسميع والتقييم والسرد القرآني المتتابع -->
+    <div id="tabEval" class="page">
+        <div id="syncStatus" style="text-align:center; font-size:11px; color:#e67e22; font-weight:bold; margin-bottom:5px;"></div>
+        
+        <!-- شريط استئناف السرد المعلق -->
+        <div id="resumeSardBanner" style="display:none; background:#fdf2e9; border: 2px dashed #e67e22; padding: 12px; border-radius: 10px; margin-bottom: 12px; text-align: center; direction: rtl;">
+            <span style="font-weight: bold; color: #d35400; font-size:13px;" id="resumeSardText">⚠️ هذا الطالب لديه سرد معلّق سابقاً (غير مكتمل).</span>
+            <div style="display: flex; gap: 8px; justify-content: center; margin-top: 8px;">
+                <button onclick="resumeSuspendedSard()" class="btn-secondary" style="background: var(--s); font-size: 11px; padding: 6px 12px;">✅ استئناف السرد</button>
+                <button onclick="discardSuspendedSard()" class="btn-secondary" style="background: var(--d); font-size: 11px; padding: 6px 12px;">🗑️ إلغاء والبدء من جديد</button>
+            </div>
+        </div>
+
+        <!-- شريط تحديد وتصفية الطلاب التفاعلي -->
+        <div class="student-selector-strip">
+            <div style="display: flex; gap: 8px; align-items: center; width: 100%;">
+                <label style="font-weight: bold; font-size: 13px; color: var(--p); white-space: nowrap;">تصفية حلقة العرض:</label>
+                <select id="evalGroupFilter" onchange="onEvalGroupFilterChange()" class="student-dropdown" style="padding: 6px 12px; font-size: 14px; border: 1px solid var(--a); height: auto; flex: 1;"></select>
+            </div>
+            
+            <div style="display: flex; align-items: center; gap: 8px; width: 100%;">
+                <button class="nav-arrow" onclick="navStudent(-1, false)">❮</button>
+                <select id="studentDropdown" class="student-dropdown" onchange="onStudentSelectChange(false)" style="margin:0;"></select>
+                <button class="nav-arrow" onclick="navStudent(1, false)">❯</button>
+            </div>
+
+            <!-- شريط التمرير الأفقي لاختيار سريع ومباشر للطلاب بلمسة واحدة -->
+            <div id="studentScrollStrip" style="display: flex; gap: 8px; overflow-x: auto; padding: 10px 5px; white-space: nowrap; background: #eef2f3; border-radius: 8px; border: 1px solid #dcdde1; -webkit-overflow-scrolling: touch; scroll-behavior: smooth;">
+                <!-- سيتم توليد أزرار الطلاب برمجياً هنا -->
+            </div>
+        </div>
+
+        <div id="evalArea" style="display:none;">
+            
+            <!-- خيار إلحاق السرد الحالي بجلسة سرد قديمة ومخزنة [3] -->
+            <div id="appendSessionContainer" style="background: #ebf5fb; padding: 10px; border-radius: 8px; margin-bottom: 8px; border: 1px solid #a9cce3; display:none; flex-direction:column; gap:4px; direction:rtl;">
+                <label style="font-weight: bold; font-size: 12px; color: #2980b9;">🔗 هل ترغب في إلحاق السرد الحالي بجلسة سرد سابقة لهذا الطالب؟</label>
+                <select id="appendSessionSelect" style="font-weight: bold; font-size: 13px; margin:0; border: 1px solid var(--a); padding: 6px; border-radius: 6px;">
+                    <option value="">-- لا، ابدأ جلسة سرد مستقلة جديدة --</option>
+                </select>
+            </div>
+
+            <div class="config-box">
+                <!-- اختيار طريقة السرد القرآني المطور -->
+                <div class="config-row" style="background: #eef2f3; padding: 10px; border-radius: 8px; margin-bottom: 5px; border: 1px solid #ccc;">
+                    <label style="font-weight: bold; font-size: 13px; color: var(--p); width: 100%; display: block; margin-bottom: 5px;">نوع السرد والتقييم المطلوب:</label>
+                    <select id="evalSardTypeSelect" onchange="toggleSardType()" style="font-weight: bold; border: 1px solid var(--a); font-size: 14px;">
+                        <option value="single">تسميع سورة واحدة منفردة</option>
+                        <option value="range" selected>سرد متتابع لنطاق من السور (من .. إلى)</option>
+                        <option value="juz">سرد جزء كامل (من الجزء 1 إلى 30)</option>
+                    </select>
+                </div>
+
+                <!-- خيار سورة واحدة -->
+                <div id="singleSurahContainer" style="display: none;">
+                    <select id="surahSelect"></select>
+                </div>
+
+                <!-- خيار نطاق السور -->
+                <div id="rangeSurahContainer" style="display: flex; flex-direction: row; gap: 10px; width: 100%;">
+                    <div style="flex:1;">
+                        <label style="font-size: 11px; font-weight: bold;">من سورة:</label>
+                        <select id="sardFromSurah"></select>
+                    </div>
+                    <div style="flex:1;">
+                        <label style="font-size: 11px; font-weight: bold;">إلى سورة:</label>
+                        <select id="sardToSurah"></select>
+                    </div>
+                </div>
+
+                <!-- خيار جزء كامل -->
+                <div id="juzSurahContainer" style="display: none; width: 100%;">
+                    <label style="font-size: 11px; font-weight: bold;">اختر الجزء المراد سرده:</label>
+                    <select id="sardJuzSelect" style="font-weight: bold;"></select>
+                </div>
+                
+                <div class="config-row" style="background: #f1f2f6; padding: 8px; border-radius: 6px;">
+                    <label style="font-weight: bold; font-size: 13px; color: var(--p);">طريقة التسميع:</label>
+                    <select id="examModeSelect" onchange="toggleExamMode()" style="flex:1; margin:0; font-size: 14px;">
+                        <option value="auto">توليد مقاطع عشوائية آلياً</option>
+                        <option value="full" selected>تسميع السورة كاملة</option>
+                        <option value="manual">إدخال مقاطع يدوية</option>
+                    </select>
+                </div>
+
+                <div id="autoConfigInputs" class="config-row" style="display:none;">
+                    <div class="config-item"><label>المقاطع</label><input type="number" id="qCount" value="3"></div>
+                    <div class="config-item"><label>الآيات/الأسطر</label><input type="number" id="vCount" value="5"></div>
+                    <div class="config-item"><label>أسئلة الكلمات</label><input type="number" id="vocabCount" value="4"></div>
+                    <div class="config-item"><label>أسئلة التفسير</label><input type="number" id="tafsirCount" value="2"></div>
+                </div>
+
+                <div id="manualConfigInputs" class="config-row" style="display:none;">
+                    <div style="width: 100%;">
+                        <label style="font-size: 11px; font-weight: bold; color: var(--p); margin-bottom: 4px; display: block;">أرقام الآيات للمقاطع (مثال: 1-5, 10-15):</label>
+                        <input type="text" id="manualSegmentsInput" placeholder="أدخل الآيات مثل: 1-5, 20-24" style="width: 100%; text-align: left; direction: ltr;">
+                    </div>
+                    <div class="config-row" style="width: 100%;">
+                        <div class="config-item"><label>أسئلة الكلمات</label><input type="number" id="manualVocabCount" value="4"></div>
+                        <div class="config-item"><label>أسئلة التفسير</label><input type="number" id="manualTafsirCount" value="2"></div>
+                    </div>
+                </div>
+
+                <!-- أزرار البدء وإعادة التحضير كأيقونات صغيرة دائرية لتوفير المساحة -->
+                <div style="display: flex; gap: 8px; margin-top: 5px; align-items: center; justify-content: center;">
+                    <button id="btnPrepareExam" onclick="prepareSmartExam(false)" class="btn-main" style="background: var(--p); width: 42px; height: 42px; border-radius: 8px; padding: 0; display: flex; align-items: center; justify-content: center; flex-shrink: 0;" title="تحضير السورة">
+                        <span style="font-size: 18px;">🔄</span>
+                    </button>
+                    <button id="btnActualStart" onclick="startRecitationTimer()" class="btn-main" style="background: var(--hifz-btn); width: 42px; height: 42px; border-radius: 8px; padding: 0; display: none; align-items: center; justify-content: center; flex-shrink: 0;" title="بدء التسميع">
+                        <span style="font-size: 18px;">▶️</span>
+                    </button>
+                </div>
+            </div>
+
+            <div class="quran-center" id="quranCenterContainer">
+                <div id="quranMeta" class="q-info">يرجى تحضير المقطع ثم الضغط على "بدء التسميع"</div>
+                <div id="quranContent" class="quran-text">...</div>
+                
+                <div id="retestAlert" class="retest-bottom-banner" style="display:none;">
+                    <span class="retest-text">تنبيه: يُـعــاد التسميع!</span>
+                </div>
+
+                <button id="nextBtn" onclick="handleExamNext(false)" style="display:none; width: 100%; padding: 15px; margin-top: 15px; background: var(--s); color: white; border: none; border-radius: 10px; font-weight: bold; font-size: 16px; cursor: pointer;">المقطع التالي ⮕</button>
+            </div>
+
+            <!-- لوحة التحكم الجديدة المخصصة (أزرار أسفل السورة) تفادياً للخلط مع أزرار التقييم مرتبة بدقة RTL -->
+            <div class="pad-row" id="surahActionRow" style="margin-top: 10px; margin-bottom: 15px; justify-content: center; gap: 8px; width: 100%; direction: rtl;">
+                <button id="padBtnVocab" onclick="triggerVocabPrompt()" class="pad-btn" style="background: #2980b9; border-bottom: 3px solid #1f618d; min-width: 90px; max-width: 130px; flex: 1; display: none;">
+                    <span style="font-size: 11.5px !important; text-align: center; color: white; font-weight: bold;">🧩 المفردات</span>
+                </button>
+                <button id="padBtnNote" onclick="triggerNotePrompt()" class="pad-btn" style="background: #e67e22; border-bottom: 3px solid #d35400; min-width: 90px; max-width: 130px; flex: 1; display: none;">
+                    <span style="font-size: 11.5px !important; text-align: center; color: white; font-weight: bold;">📝 الملاحظات</span>
+                </button>
+                <button id="padBtnSave" onclick="saveFinalResult()" class="pad-btn" style="background: var(--s); border-bottom: 3px solid #1e7e34; min-width: 120px; max-width: 160px; flex: 1.2; display: none;">
+                    <span id="padBtnSaveText" style="font-size: 11.5px !important; text-align: center; color: white; font-weight: bold;">💾 حفظ واعتماد</span>
+                </button>
+                <button id="padBtnPause" onclick="pauseSardTemporarily()" class="pad-btn" style="background: #f1c40f; border-bottom: 3px solid #f39c12; min-width: 100px; max-width: 140px; flex: 1; display: none;">
+                    <span style="font-size: 11.5px !important; text-align: center; color: white; font-weight: bold;">⏸️ تعليق السرد</span>
+                </button>
+                <button id="padBtnEndEarly" onclick="endSardEarly()" class="pad-btn" style="background: var(--d); border-bottom: 3px solid #b03a2e; min-width: 100px; max-width: 140px; flex: 1; display: none;">
+                    <span style="font-size: 11.5px !important; text-align: center; color: white; font-weight: bold;">🛑 إنهاء السرد</span>
+                </button>
+            </div>
+
+            <!-- حقل الملاحظات مخفي حالياً ويتم تعبئته تفاعلياً من زر الملاحظات البرتقالي بأسفل السورة -->
+            <textarea id="evalNote" placeholder="ملاحظات المعلم هنا..." rows="2" style="display: none;"></textarea>
+        </div>
+
+        <!-- لوحة التقييم السفلى المخصصة لخصومات التسميع والتجويد والبونص دون تداخل -->
+        <div class="fixed-eval-pad" id="fixedEvalPad" style="display:none;">
+            <div class="score-display" id="displayScore">50.00</div>
+            <div class="pad-row" id="hifzButtons"></div>
+            <div class="pad-row" id="tajweedButtons"></div>
+        </div>
+    </div>
+
+    <!-- سجل النتائج والدرجات والشبكة التراكمية الموحدة -->
+    <div id="tabResults" class="page">
+        <div id="printHeaderNormal" class="print-header">نتيجة التسميع والسرد التراكمي للقرآن الكريم</div>
+        <div id="committeeHeaderBox" class="committee-header"></div>
+        
+        <!-- حماية النتائج العامة ورسم الخيارات المتقدمة -->
+        <div id="resultsLockPanel" style="background: #fdf2e9; padding: 15px; border-radius: 10px; border: 1px solid #f5b041; margin-bottom: 15px;" class="no-print">
+            <div id="resultsLockStateLocked" style="display:block;">
+                <span style="font-weight: bold; color: #d35400;">🔒 أنت تستعرض حالياً نتائجك الخاصة كمعلم فقط.</span>
+                <button onclick="unlockGlobalResults()" class="btn-secondary" style="background: #e67e22; margin-right: 15px; padding: 6px 12px; font-size: 12px;">🔓 فتح عرض النتائج العامة لكافة المجموعات والطلاب</button>
+            </div>
+            <div id="resultsLockStateUnlocked" style="display:none;">
+                <span style="font-weight: bold; color: #27ae60;">🔓 تم تفعيل وضع استعراض النتائج والترتيب العام لجميع الطلاب.</span>
+                <button onclick="lockGlobalResults()" class="btn-secondary" style="background: #2c3e50; margin-right: 15px; padding: 6px 12px; font-size: 12px;">🔒 العودة لاستعراض النتائج الخاصة بي فقط</button>
+            </div>
+        </div>
+
+        <div class="no-print" style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 15px; flex-wrap: wrap; gap: 10px;">
+            <h3 id="resultsViewTitle">سجل درجات المعلم المعتمدة</h3>
+            <div style="display: flex; gap: 5px;">
+                <button onclick="window.print()" class="btn-secondary" style="background: #333;">🖨️ طباعة</button>
+            </div>
+        </div>
+        
+        <!-- الحاوية الموحدة للمجموعات لتقليل التشتت وعرض شبكة السرد الإجمالي -->
+        <div id="unifiedResultsContainer">
+            <div class="table-title">شبكة السرد التراكمي ودرجات السور والترتيب العام والخاص 🏆</div>
+            <div style="overflow-x:auto;">
+                <table id="resultsTableAveraged">
+                    <thead>
+                        <tr id="resultsHeaderAveraged">
+                            <th style="width: 50px;">الترتيب 🏆</th>
+                            <th>اسم الطالب</th>
+                            <th>المجموعة</th>
+                            <th>نوع السرد</th>
+                            <th>شبكة درجات السور المسمعة 📊</th>
+                            <th>متوسط التسميع</th>
+                            <th>وقت السرد ⏱️</th>
+                            <th>نقاط السرعة (من 50) 🚀</th>
+                            <th>النقاط النهائية (من 100) ⭐</th>
+                            <th>المعلم والتوثيق</th>
+                            <th class="no-print">إجراء</th>
+                        </tr>
+                    </thead>
+                    <tbody id="resultsBodyAveraged"></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- الإعدادات -->
+    <div id="tabSettings" class="page">
+        <!-- لوحة إعادة ضبط حالة السرد اليومية (المربع الأبيض) -->
+        <div class="settings-card" style="border-right: 4px solid var(--a); background: #fdfefe;">
+            <h4 style="color: var(--p);">⚪ نظام إعادة ضبط حالة السرد والامتحانات اليومية</h4>
+            <p style="font-size: 12px; color: #7f8c8d; margin-top: -5px;">تتيح لك هذه اللوحة إلغاء حالة سرد اليوم لأي طالب أو لجميع الطلاب، وإرجاعهم إلى "المربع الأبيض" (لم يسرد اليوم) عن طريق مسح تقييمات اليوم وامتحاناتهم النشطة فقط.</p>
+            
+            <label style="color: var(--p); font-weight: bold; font-size: 12px;">اختر الطالب المراد إرجاعه للمربع الأبيض اليوم:</label>
+            <div style="display: flex; gap: 8px; margin-top: 5px;">
+                <select id="resetSingleStudentSelect" class="student-dropdown" style="flex: 2; font-weight: bold; padding: 6px;"></select>
+                <button onclick="resetSingleStudentSardToday()" class="btn-main" style="flex: 1; background: var(--d); font-size: 10px; padding: 6px;">إلغاء سرد الطالب اليوم</button>
+            </div>
+            
+            <div style="margin-top: 15px; border-top: 1px dashed #ccc; padding-top: 10px;">
+                <button onclick="resetAllStudentsSardToday()" class="btn-main" style="background: var(--p); font-size: 11px; padding: 8px;">🔄 إعادة ضبط كافة طلاب الحلقة دفعة واحدة للمربع الأبيض اليوم</button>
+            </div>
+        </div>
+
+        <!-- إضافة المجموعات وحلقات التحفيظ الجديدة -->
+        <div class="settings-card" style="border-right: 4px solid var(--a);">
+            <h4>إدارة المجموعات وحلقات التحفيظ</h4>
+            <label style="color: var(--p); font-weight: bold; font-size: 13px;">إضافة مجموعة / حلقة جديدة:</label>
+            <div style="display: flex; gap: 10px; margin-top: 5px;">
+                <input type="text" id="newGroupNameInput" placeholder="اسم الحلقة (مثال: حلقة عاصم)">
+                <button class="btn-main" onclick="addNewGroup()" style="flex: 1; margin:0; background: var(--a);">إضافة المجموعة</button>
+            </div>
+            
+            <div style="margin-top: 15px;">
+                <h5 style="margin: 0 0 5px 0; color: var(--p);">قائمة الحلقات الحالية بالمسار:</h5>
+                <div id="groupListManage" style="max-height: 150px; overflow-y:auto; font-size:12px; border: 1px solid #ccc; padding: 8px; border-radius: 6px; background: #fff;"></div>
+            </div>
+        </div>
+
+        <!-- إضافة وإدارة المعلمين وحسابات الدخول وربطهم بالمجموعات -->
+        <div class="settings-card" style="border-right: 4px solid var(--s);">
+            <h4>إدارة حسابات المعلمين والربط بالمجموعات</h4>
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
+                <input type="text" id="newUsernameInput" placeholder="اسم المستخدم للدخول">
+                <input type="password" id="newPasswordInput" placeholder="الرقم السري">
+            </div>
+            <input type="text" id="newTeacherNameInput" placeholder="الاسم الكامل للمعلم (الذي يظهر في التقارير)" style="margin-top: 5px;">
+            
+            <label style="font-size: 12px; font-weight: bold; margin-top: 8px; display: block; color: var(--p);">تنسيب المعلم لمجموعة محددة (سيشاهد طلابها فقط):</label>
+            <select id="newUserGroupSelect" style="margin-top: 5px;"></select>
+            
+            <button onclick="addNewUser()" class="btn-main" style="background: var(--s); margin-top: 8px;">إضافة حساب معلم جديد</button>
+            
+            <div style="margin-top: 15px;">
+                <h5 style="margin: 0 0 5px 0; color: var(--p);">قائمة حسابات الدخول المضافة:</h5>
+                <div id="usersListManage" style="max-height: 150px; overflow-y:auto; font-size:12px; border: 1px solid #ccc; padding: 8px; border-radius: 6px; background: #fff;"></div>
+            </div>
+        </div>
+
+        <!-- إضافة طلاب مع تنسيبهم للحلقات المحددة -->
+        <div class="settings-card">
+            <h4>إدخل أسماء طلاب المجموعة</h4>
+            <label style="color: var(--p); font-weight: bold; font-size: 13px; display: block; margin-bottom: 5px;">اختر المجموعة لتنسيب هؤلاء الطلاب إليها:</label>
+            <select id="bulkNamesGroupSelect" style="margin-bottom: 10px; font-weight: bold;"></select>
+
+            <label style="color: var(--p); font-weight: bold; font-size: 13px;">اكتب الأسماء هنا (اسم كل طالب في سطر منفصل):</label>
+            <textarea id="bulkNames" placeholder="الاسم الأول المزدوج أو الثلاثي (كل طالب في سطر)" rows="6" style="margin-top:5px;"></textarea>
+            <button class="btn-main" onclick="saveStudentsBulk()" style="margin-top: 10px;">حفظ الأسماء بالمجموعة المحددة</button>
+            
+            <div style="margin-top: 20px; border-top: 2px solid #eee; padding-top: 10px;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 5px;">
+                    <h5 style="margin: 0; color: var(--p);">قائمة الطلاب المسجلين بالحلقة</h5>
+                    <button onclick="deleteAllStudents()" class="btn-secondary" style="background: var(--d); padding: 5px 10px; font-size: 11px;">🗑️ مسح كل الأسماء</button>
+                </div>
+                <div id="studentListManage" style="max-height: 200px; overflow-y:auto; font-size:12px; border: 1px solid #ccc; padding: 8px; border-radius: 6px; background: #fff;"></div>
+            </div>
+        </div>
+
+        <!-- إعدادات الإعادة التلقائية -->
+        <div class="settings-card" style="border-right: 4px solid var(--d);">
+            <h4>نظام تنبيه الإعادة التلقائي (يعاد)</h4>
+            <label style="font-size: 13px; font-weight: bold;">الدرجة التي إذا وصل إليها الطالب يظهر تنبيه (يعاد) وتُسجل كملاحظة حفظ تلقائية:</label>
+            <div style="display: flex; gap: 10px; margin-top: 5px;">
+                <input type="number" id="retestThresholdInput" value="0" placeholder="مثال: 45" style="flex: 2; font-weight: bold; font-size: 16px; color: var(--d);">
+                <button class="btn-main" onclick="saveRetestThreshold()" style="flex: 1; background: var(--d);">حفظ الدرجة</button>
+            </div>
+            
+            <label style="font-size: 13px; font-weight: bold; margin-top: 10px; display: block;">طريقة احتساب درجة الإعادة (نوع النظام):</label>
+            <select id="retestThresholdTypeSelect" onchange="saveRetestThresholdType()" style="font-weight: bold; border: 1px solid var(--d); font-size: 14px; margin-top: 5px; width: 100%; box-sizing: border-box; padding: 10px; border-radius: 8px;">
+                <option value="surah" selected>مستقل لكل سورة بشكل منفصل (سورة سورة)</option>
+                <option value="cumulative">تراكمي لكامل السرد (خصومات مستمرة للمجموع الكلي)</option>
+            </select>
+            <div style="font-size: 11px; color: #7f8c8d; margin-top: 5px;">* اجعل القيمة 0 لتعطيل هذه الميزة تماماً. عند اختيار التراكمي، سيستمر الخصم من الـ 50 نقطة طوال فترة السرد ولن تتصفر مع الانتقال لسورة جديدة.</div>
+        </div>
+
+        <!-- بوابة المزامنة السحابية المباشرة (Google Drive Web App) -->
+        <div class="settings-card" style="border-right: 4px solid var(--a);">
+            <h4>☁️ إعدادات المزامنة السحابية المباشرة</h4>
+            <p style="font-size: 12px; color: #7f8c8d; margin-bottom: 8px;">
+                رابط المزامنة التلقائية المباشرة (Google Web App URL) المرتبط بالنظام:
+            </p>
+            <input type="text" id="setting-webapp-url" placeholder="https://script.google.com/macros/s/xxxx/exec" style="font-family: monospace; font-size: 13px;">
+            <button onclick="saveWebAppUrl()" class="btn-main" style="background: var(--a); margin-top: 8px;">💾 حفظ وتحديث رابط المزامنة السحابية</button>
+        </div>
+
+        <!-- إدارة أزرار التقييم وألوانها التفاعلية -->
+        <div class="settings-card">
+            <h4>إدارة أزرار التقييم والخصم والألوان</h4>
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
+                <input type="text" id="btnName" placeholder="اسم الزر">
+                <input type="number" id="btnDeduct" value="0.5" step="0.25">
+            </div>
+            <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; margin-top: 8px;">
+                <select id="btnType"><option value="deduct">خصم (-)</option><option value="bonus">إضافة رصيد (+)</option></select>
+                <select id="btnCat"><option value="hifz">قسم الحفظ</option><option value="tajweed">قسم التجويد</option></select>
+                <div>
+                    <label style="font-size:10px; font-weight:bold; display:block; text-align:center;">اختر لون الزر:</label>
+                    <input type="color" id="btnColor" value="#e67e22" style="padding:2px; height:38px; width:100%; cursor:pointer; border:1px solid #ccc; border-radius:6px;">
+                </div>
+            </div>
+            <button onclick="addNewEvalBtn()" class="btn-main" style="background: var(--p); margin-top: 8px;">إضافة زر للوحة</button>
+            
+            <div style="margin-top: 15px;">
+                <h5 style="margin: 0 0 5px 0; color: var(--p);">قائمة أزرار التقييم والخصم المضافة (انقر فوق المربع الملون لتغيير لون الزر):</h5>
+                <div id="itemsListManage" style="max-height: 180px; overflow-y:auto; font-size:12px; border: 1px solid #ccc; padding: 8px; border-radius: 6px; background: #fff;"></div>
+            </div>
+        </div>
+
+        <button onclick="if(confirm('حذف كل البيانات والتسجيلات بشكل دائم من المتصفح؟')){localStorage.clear(); location.reload();}" style="color:red; font-size:12px; border:none; background:none; cursor:pointer; text-decoration: underline;">مسح شامل لبيانات المتصفح</button>
+        <input type="text" id="cloudSyncUrlInput" style="display: none;">
+    </div>
+</div>
+
+<script>
+    // مصفوفة السور القرآنية كاملة
+    const quranSurahs = [{id:1,n:"الفاتحة",v:7},{id:2,n:"البقرة",v:286},{id:3,n:"آل عمران",v:200},{id:4,n:"النساء",v:176},{id:5,n:"المائدة",v:120},{id:6,n:"الأنعام",v:165},{id:7,n:"الأعراف",v:206},{id:8,n:"الأنفال",v:75},{id:9,n:"التوبة",v:129},{id:10,n:"يونس",v:109},{id:11,n:"هود",v:123},{id:12,n:"يوسف",v:111},{id:13,n:"الرعد",v:43},{id:14,n:"إبراهيم",v:52},{id:15,n:"الحجر",v:99},{id:16,n:"النحل",v:128},{id:17,n:"الإسراء",v:111},{id:18,n:"الكهف",v:110},{id:19,n:"مريم",v:98},{id:20,n:"طه",v:135},{id:21,n:"الأنبياء",v:112},{id:22,n:"الحج",v:78},{id:23,n:"المؤمنون",v:118},{id:24,n:"النور",v:64},{id:25,n:"الفرقان",v:77},{id:26,n:"الشعراء",v:227},{id:27,n:"النمل",v:93},{id:28,n:"القصص",v:88},{id:29,n:"العنكبوت",v:69},{id:30,n:"الروم",v:60},{id:31,n:"لقمان",v:34},{id:32,n:"السجدة",v:30},{id:33,n:"الأحزاب",v:73},{id:34,n:"سبأ",v:54},{id:35,n:"فاطر",v:45},{id:36,n:"يس",v:83},{id:37,n:"الصافات",v:182},{id:38,n:"ص",v:88},{id:39,n:"الزمر",v:75},{id:40,n:"غافر",v:85},{id:41,n:"فصلت",v:54},{id:42,n:"الشورى",v:53},{id:43,n:"الزخرف",v:89},{id:44,n:"الدخان",v:59},{id:45,n:"الجاثية",v:37},{id:46,n:"الأحقاف",v:35},{id:47,n:"محمد",v:38},{id:48,n:"الفتح",v:29},{id:49,n:"الحجرات",v:18},{id:50,n:"ق",v:45},{id:51,n:"الذاريات",v:60},{id:52,n:"الطور",v:49},{id:53,n:"النجم",v:62},{id:54,n:"القمر",v:55},{id:55,n:"الرحمن",v:78},{id:56,n:"الواقعة",v:96},{id:57,n:"الحديد",v:29},{id:58,n:"المجادلة",v:22},{id:59,n:"الحشر",v:24},{id:60,n:"الممتحنة",v:13},{id:61,n:"الصف",v:14},{id:62,n:"الجمعة",v:11},{id:63,n:"المنافقون",v:11},{id:64,n:"التغابن",v:18},{id:65,n:"الطلاق",v:12},{id:66,n:"التحريم",v:12},{id:67,n:"الملك",v:30},{id:68,n:"القلم",v:52},{id:69,n:"الحاقة",v:52},{id:70,n:"المعارج",v:44},{id:71,n:"نوح",v:28},{id:72,n:"الجن",v:28},{id:73,n:"المزمل",v:20},{id:74,n:"المدثر",v:56},{id:75,n:"القيامة",v:40},{id:76,n:"الإنسان",v:31},{id:77,n:"المرسلات",v:50},{id:78,n:"النبأ",v:40},{id:79,n:"النازعات",v:46},{id:80,n:"عبس",v:42},{id:81,n:"التكوير",v:29},{id:82,n:"الانفطار",v:19},{id:83,n:"المطففين",v:36},{id:84,n:"الانشقاق",v:25},{id:85,n:"البروج",v:22},{id:86,n:"الطارق",v:17},{id:87,n:"الأعلى", v:19},{id:88,n:"الغاشية",v:26},{id:89,n:"الفجر",v:30},{id:90,n:"البلد",v:20},{id:91,n:"الشمس",v:15},{id:92,n:"الليل",v:21},{id:93,n:"الضحى",v:11},{id:94,n:"الشرح",v:8},{id:95,n:"التين",v:8},{id:96,n:"العلق",v:19},{id:97,n:"القدر",v:5},{id:98,n:"البينة",v:8},{id:99,n:"الزلزلة",v:8},{id:100,n:"العاديات",v:11},{id:101,n:"القارعة",v:11},{id:102,n:"التكاثر",v:8},{id:103,n:"العصر",v:3},{id:104,n:"الهمزة",v:9},{id:105,n:"الفيل",v:5},{id:106,n:"قريش",v:4},{id:107,n:"الماعون",v:7},{id:108,n:"الكوثر",v:3},{id:109,n:"الكافرون",v:6},{id:110,n:"النصر",v:3},{id:111,n:"المسد",v:5},{id:112,n:"الإخلاص",v:4},{id:113,n:"الفلق",v:5},{id:114,n:"الناس",v:6}];
+    
+    // المجموعات الحالية الـ 6 لـ القدماء والجدد كاملة دون اختصار
+    const DEFAULT_STUDENTS = [
+        { id: "s_old_1_1", name: "أفلح بن عبد الله بن سعيد الرزيفي", groupName: "اقرأ (ق)" },
+        { id: "s_old_1_2", name: "إلياس بن جمعه بين عبيد الحجري", groupName: "اقرأ (ق)" },
+        { id: "s_old_1_3", name: "سعيد بن علي بن ناصر الزرعي", groupName: "اقرأ (ق)" },
+        { id: "s_old_1_4", name: "عبد الرحمن بن سالم بن حمد المالكي", groupName: "اقرأ (ق)" },
+        { id: "s_old_1_5", name: "علي بن حميد بن علي الحجري", groupName: "اقرأ (ق)" },
+        { id: "s_old_1_6", name: "هادي بن سالم بن هادي الحرسوسي", groupName: "اقرأ (ق)" },
+
+        { id: "s_old_2_1", name: "إحمد بن حمد بن علي العمري", groupName: "رتل (ق)" },
+        { id: "s_old_2_2", name: "حمدان بن أحمد الوهيبي", groupName: "رتل (ق)" },
+        { id: "s_old_2_3", name: "تميم بن حثيث بن عامر الوهيبي", groupName: "رتل (ق)" },
+        { id: "s_old_2_4", name: "خالد بن معاذ بن خالد الدغيشي", groupName: "رتل (ق)" },
+        { id: "s_old_2_5", name: "زاهر بن سعيد بن علي الوهيبي", groupName: "رتل (ق)" },
+        { id: "s_old_2_6", name: "سالم بن ناصربن سالم الحجري", groupName: "رتل (ق)" },
+        { id: "s_old_2_7", name: "مصطفى بن ساعد بن مسعود الرزيقي", groupName: "رتل (ق)" },
+        { id: "s_old_2_8", name: "معضد بن عبد الله بن سالم الحجري", groupName: "رتل (ق)" },
+        { id: "s_old_2_9", name: "هيثم بن حميد بن راشد الحجري", groupName: "رتل (ق)" },
+
+        { id: "s_old_3_1", name: "سالم بن سعيد بن حمد الحجري", groupName: "ارتق (ق)" },
+        { id: "s_old_3_2", name: "سعيد بن بدر بن عبد الله الجهضمي", groupName: "ارتق (ق)" },
+        { id: "s_old_3_3", name: "صالح بن مسعود بن حمد السعدي", groupName: "ارتق (ق)" },
+        { id: "s_old_3_4", name: "حميد بن محمد بن هلال الحجري", groupName: "ارتق (ق)" },
+        { id: "s_old_3_5", name: "يوسف بن حميد بن حمد الحجري", groupName: "ارتق (ق)" },
+
+        { id: "s_new_1_1", name: "محمد بن ناصر الرزيقي", groupName: "ارتق (ج)" },
+        { id: "s_new_1_2", name: "عامر بن حميد الحجري", groupName: "ارتق (ج)" },
+        { id: "s_new_1_3", name: "عبدالرحمن بن مبارك الرحبي", groupName: "ارتق (ج)" },
+        { id: "s_new_1_4", name: "محمد بن خالد الراشدي", groupName: "ارتق (ج)" },
+        { id: "s_new_1_5", name: "إسماعيل بن حسن الحجري", groupName: "ارتق (ج)" },
+        { id: "s_new_1_6", name: "ناصر بن جمال الحجري", groupName: "ارتق (ج)" },
+        { id: "s_new_1_7", name: "حمود بن ناصر الرواحي", groupName: "ارتق (ج)" },
+        { id: "s_new_1_8", name: "إلياس بن خصيب البدوي", groupName: "ارتق (ج)" },
+        { id: "s_new_1_9", name: "خصيب بن محمد البدوي", groupName: "ارتق (ج)" },
+        { id: "s_new_1_10", name: "سعيد بن معاذ الدغيشي", groupName: "ارتق (ج)" },
+        { id: "s_new_1_11", name: "يحيى بن أحمد المالكي", groupName: "ارتق (ج)" },
+        { id: "s_new_1_12", name: "الهيثم بن صالح بن هدوب الحجري", groupName: "ارتق (ج)" },
+
+        { id: "s_new_2_1", name: "سهيل بن سالم الوهيبي", groupName: "رتل (ج)" },
+        { id: "s_new_2_2", name: "sعود بن سعيد الوهيبي", groupName: "رتل (ج)" },
+        { id: "s_new_2_3", name: "طه بن سالم المالكي", groupName: "رتل (ج)" },
+        { id: "s_new_2_4", name: "ليث بن سعيد البدوي", groupName: "رتل (ج)" },
+        { id: "s_new_2_5", name: "نايف بن سالم السيفي", groupName: "رتل (ج)" },
+        { id: "s_new_2_6", name: "الأزهر بن سعيد الوهيبي", groupName: "رتل (ج)" },
+        { id: "s_new_2_7", name: "عمر بن سالم السيفي", groupName: "رتل (ج)" },
+        { id: "s_new_2_8", name: "بدر بن سعيد السيفي", groupName: "رتل (ج)" },
+        { id: "s_new_2_10", name: "مجتبى نزار قاسم", groupName: "رتل (ج)" },
+        { id: "s_new_2_11", name: "عامر بن محمد بن عامر الحجري", groupName: "رتل (ج)" },
+        { id: "s_new_2_12", name: "عبد الله بن حمد الهاشَمي", groupName: "رتل (ج)" },
+
+        { id: "s_new_3_1", name: "عيسى بن صالح السعدي", groupName: "اقرأ (ج)" },
+        { id: "s_new_3_2", name: "محمد بن حمد السليمي", groupName: "اقرأ (ج)" },
+        { id: "s_new_3_3", name: "حمد بن سالم الهاشمي", groupName: "اقرأ (ج)" },
+        { id: "s_new_3_4", name: "يوسف بن يعقوب البدوي", groupName: "اقرأ (ج)" },
+        { id: "s_new_3_5", name: "محمد بن سعيد الحجري", groupName: "اقرأ (ج)" },
+        { id: "s_new_3_6", name: "صخر بن حامد السليمي", groupName: "اقرأ (ج)" },
+        { id: "s_new_3_7", name: "أحمد بن حمد السليمي", groupName: "اقرأ (ج)" },
+        { id: "s_new_3_8", name: "أسعد بن سعيد الزرعي", groupName: "اقرأ (ج)" },
+        { id: "s_new_3_9", name: "محمد بن عبدالله الوهيبي", groupName: "اقرأ (ج)" },
+        { id: "s_new_3_10", name: "مظفر بن علي الوهيبي", groupName: "اقرأ (ج)" }
+    ];
+
+    let DB_STUDENTS = [];
+    try { DB_STUDENTS = JSON.parse(localStorage.getItem('DB_STUDENTS')) || []; } catch(e) {}
+    if (!Array.isArray(DB_STUDENTS) || DB_STUDENTS.length === 0) {
+        DB_STUDENTS = DEFAULT_STUDENTS;
+        localStorage.setItem('DB_STUDENTS', JSON.stringify(DB_STUDENTS));
+    }
+    DB_STUDENTS.forEach(s => { if (s.id) s.id = s.id.toString(); });
+
+    // تنظيف ومسح تكرار أسماء الطلاب لمنع تكرار مربعات التقييم والسرد
+    deduplicateStudentsList();
+
+    let DB_ITEMS = [];
+    try { DB_ITEMS = JSON.parse(localStorage.getItem('DB_ITEMS')); } catch(e) {}
+    if (!Array.isArray(DB_ITEMS) || DB_ITEMS.length === 0 || !DB_ITEMS.some(it => it.name === "خطأ كلمة")) {
+        DB_ITEMS = [
+            {id:"1", name:"خطأ كلمة", deduct:0.5, cat:"hifz", color: "#e67e22"},
+            {id:"2", name:"تشكيل", deduct:0.25, cat:"hifz", color: "#e67e22"},
+            {id:"3", name:"آية كاملة", deduct:1.0, cat:"hifz", color: "#d35400"},
+            {id:"4", name:"تنبيه", deduct:0.25, cat:"hifz", color: "#f39c12"},
+            {id:"5", name:"تردد / توقف", deduct:0.25, cat:"hifz", color: "#e67e22"},
+            {id:"6", name:"حرف زائد/ناقص", deduct:0.25, cat:"hifz", color: "#e67e22"},
+            {id:"7", name:"نسيان بداية", deduct:0.5, cat:"hifz", color: "#e67e22"},
+            
+            {id:"8", name:"لحن جلي", deduct:1.0, cat:"tajweed", color: "#c0392b"},
+            {id:"9", name:"لحن خفي", deduct:0.5, cat:"tajweed", color: "#8e44ad"},
+            {id:"10", name:"خطأ غنة", deduct:0.25, cat:"tajweed", color: "#8e44ad"},
+            {id:"11", name:"خطأ مد", deduct:0.25, cat:"tajweed", color: "#8e44ad"},
+            {id:"12", name:"مخارج الحروف", deduct:0.5, cat:"tajweed", color: "#8e44ad"},
+            {id:"13", name:"قلقلة / صفات", deduct:0.25, cat:"tajweed", color: "#8e44ad"},
+            {id:"14", name:"الوقف والابتداء", deduct:0.25, cat:"tajweed", color: "#8e44ad"},
+            
+            {id:"15", name:"حفظ متقن (+)", deduct:-1.0, cat:"hifz", isBonus:true, color: "#2ecc71"},
+            {id:"16", name:"أداء متميز (+)", deduct:-0.5, cat:"tajweed", isBonus:true, color: "#1abc9c"},
+            {id:"17", name:"سرعة بديهة (+)", deduct:-0.25, cat:"hifz", isBonus:true, color: "#27ae60"}
+        ];
+        localStorage.setItem('DB_ITEMS', JSON.stringify(DB_ITEMS));
+    }
+    DB_ITEMS.forEach(it => { if (it.id) it.id = it.id.toString(); });
+    
+    let DB_EVALS = [];
+    try { DB_EVALS = JSON.parse(localStorage.getItem('DB_EVALS')) || []; } catch(e) {}
+    DB_EVALS.forEach((e, i) => { if (!e.id) e.id = Date.now().toString() + Math.floor(Math.random()*1000).toString() + i.toString(); });
+
+    let DB_GROUPS = [];
+    try { DB_GROUPS = JSON.parse(localStorage.getItem('DB_GROUPS')) || []; } catch(e) {}
+    if (!Array.isArray(DB_GROUPS) || DB_GROUPS.length === 0) {
+        DB_GROUPS = [
+            { id: "1", name: "اقرأ (ق)" },
+            { id: "2", name: "رتل (ق)" },
+            { id: "3", name: "ارتق (ق)" },
+            { id: "4", name: "اقرأ (ج)" },
+            { id: "5", name: "رتل (ج)" },
+            { id: "6", name: "ارتق (ج)" }
+        ];
+        localStorage.setItem('DB_GROUPS', JSON.stringify(DB_GROUPS));
+    }
+    DB_GROUPS.forEach(g => { if (g.id) g.id = g.id.toString(); });
+
+    let DB_USERS = [];
+    try { DB_USERS = JSON.parse(localStorage.getItem('DB_USERS')) || []; } catch(e) {}
+    if (DB_USERS.length === 0 || !DB_USERS.some(u => u.teacherName === "خالد الراشدي")) {
+        DB_USERS = [
+            { username: "admin", password: "123", teacherName: "المشرف العام", groupName: "الكل" },
+            { username: "khaled", password: "123", teacherName: "خالد الراشدي", groupName: "الكل" },
+            { username: "salem", password: "123", teacherName: "سالم الحجري", groupName: "الكل" },
+            { username: "salah", password: "123", teacherName: "صلاح الحجري", groupName: "الكل" },
+            { username: "matar", password: "123", teacherName: "مطر الوهيبي", groupName: "الكل" },
+            { username: "mohammed", password: "123", teacherName: "محمد الوهيبي", groupName: "الكل" },
+            { username: "abdullah", password: "123", teacherName: "عبدالله الحجري", groupName: "الكل" },
+            { username: "ahmed", password: "123", teacherName: "أحمد الحجري", groupName: "الكل" },
+            { username: "mazen", password: "123", teacherName: "مازن الحجري", groupName: "الكل" }
+        ];
+        localStorage.setItem('DB_USERS', JSON.stringify(DB_USERS));
+    }
+
+    // مصفوفة الامتحانات السحابية الجارية حالياً لربط حالة التسميع المباشر بجميع الأجهزة
+    let DB_ACTIVE_EXAMS = [];
+    try { DB_ACTIVE_EXAMS = JSON.parse(localStorage.getItem('DB_ACTIVE_EXAMS')) || []; } catch(e) {}
+
+    // مصفوفة السير المعلق (الحفظ المؤقت)
+    let DB_PAUSED_SESSIONS = [];
+    try { DB_PAUSED_SESSIONS = JSON.parse(localStorage.getItem('DB_PAUSED_SESSIONS')) || []; } catch(e) {}
+
+    // الرابط العالمي الجديد المباشر المخصص لنظام السرد والتقييم للقرآن الكريم
+    const DEFAULT_WEBAPP_URL = "https://script.google.com/macros/s/AKfycbyyr8PAh7lrZML09yYaxm1d6vwN6bRkspRHRMTauYqqJI-bv1FihlYzMe6qjKRKU3Qu2Q/exec";
+
+    // متغيرات جلسة السرد والتقييم المتتابع
+    let sardSequence = []; // مصفوفة السور المطلوب سردها متتابعة
+    let sardCurrentIndex = 0; // مؤشر السورة الجاري سردها حالياً
+    let sardStartTime = null; // بداية توقيت جلسة سرد الجزء/النطاق الحالية
+    let sardAccumulatedSeconds = 0; // الوقت المستغرق المتراكم من الجلسات السابقة المعلقة
+    let sardSessionScores = []; // تجميع نقاط درجات السور في الجلسة الحالية
+    let sardSessionId = ""; // معرف فريد لجلسة السرد الحالية لربطها بالشبكة
+    let isSardActive = false; // هل نظام السرد المتتابع مفعل حالياً
+    let nextSurahCache = null; // ذاكرة السورة الثانية الجاهزة بالخلفية لسرعة التحميل
+    let isTimerRunning = false; // هل المؤقت وتشغيل التوقيت الفعلي يعمل الآن
+
+    let activeStudent = null;
+    let currentFiltered = [];
+    let currentExamSegments = [];
+    let currentVersesHistory = [];
+    let segIdx = 0;
+    let examMode = "hifz"; 
+    let currentScore = 50.00;
+    
+    let activeSessionCode = "";
+    let activeTeacherNames = "";
+    let activeGroupName = "";
+
+    let isSettingsUnlocked = sessionStorage.getItem('isSettingsUnlocked') === 'true';
+    let isGlobalResultsUnlocked = sessionStorage.getItem('isGlobalResultsUnlocked') === 'true';
+
+    let retestThresholdScore = 0;
+    let retestThresholdType = "surah";
+    try { retestThresholdScore = parseFloat(localStorage.getItem('RETEST_THRESHOLD')) || 0; } catch(e) {}
+    try { retestThresholdType = localStorage.getItem('RETEST_THRESHOLD_TYPE') || "surah"; } catch(e) {}
+
+    window.onload = function() {
+        let surahOptions = quranSurahs.map(s => `<option value="${s.id}">${s.id}. ${s.n}</option>`).join('');
+        const sSelect = document.getElementById('surahSelect');
+        const sFrom = document.getElementById('sardFromSurah');
+        const sTo = document.getElementById('sardToSurah');
+        
+        if (sSelect) sSelect.innerHTML = surahOptions;
+        if (sFrom) { sFrom.innerHTML = surahOptions; sFrom.value = 78; }
+        if (sTo) { sTo.innerHTML = surahOptions; sTo.value = 114; }
+
+        // تعبئة قائمة الأجزاء من 1 إلى 30
+        const sardJuzSelect = document.getElementById('sardJuzSelect');
+        if (sardJuzSelect) {
+            let juzOptions = '';
+            for (let i = 1; i <= 30; i++) {
+                juzOptions += `<option value="${i}">الجزء ${i}</option>`;
+            }
+            sardJuzSelect.innerHTML = juzOptions;
+            sardJuzSelect.value = 30; // الافتراضي جزء عم
+        }
+
+        const retestInput = document.getElementById('retestThresholdInput');
+        if (retestInput) retestInput.value = retestThresholdScore;
+
+        retestThresholdType = localStorage.getItem('RETEST_THRESHOLD_TYPE') || 'surah';
+        const retestTypeSelect = document.getElementById('retestThresholdTypeSelect');
+        if (retestTypeSelect) retestTypeSelect.value = retestThresholdType;
+
+        // تهيئة رابط المزامنة التلقائية
+        let webAppUrl = localStorage.getItem('quran_google_webapp_url') || DEFAULT_WEBAPP_URL;
+        if (!localStorage.getItem('quran_google_webapp_url')) {
+            localStorage.setItem('quran_google_webapp_url', DEFAULT_WEBAPP_URL);
+        }
+        const webAppInput = document.getElementById('setting-webapp-url');
+        if (webAppInput) webAppInput.value = webAppUrl;
+
+        try { DB_PAUSED_SESSIONS = JSON.parse(localStorage.getItem('DB_PAUSED_SESSIONS')) || []; } catch(e) {}
+
+        // عملية هجرة وتحويل تلقائية لنقاط الوقت من نظام الـ 10 درجات إلى الـ 50 نقطة لحفظ النتائج السابقة لجميع الطلاب [3]
+        let evalsMigrated = false;
+        DB_EVALS.forEach(e => {
+            if (e.speedPoints !== undefined && !e.speedPointsMigratedTo50) {
+                e.speedPoints = parseFloat((e.speedPoints * 5).toFixed(2));
+                if (e.avgScore !== undefined) {
+                    e.finalPoints = parseFloat((e.avgScore + e.speedPoints).toFixed(2));
+                } else if (e.score !== undefined) {
+                    let avg = parseFloat(e.score);
+                    e.finalPoints = parseFloat((avg + e.speedPoints).toFixed(2));
+                }
+                e.speedPointsMigratedTo50 = true;
+                evalsMigrated = true;
+            }
+        });
+        if (evalsMigrated) {
+            localStorage.setItem('DB_EVALS', JSON.stringify(DB_EVALS));
+        }
+
+        populateLoginGroups();
+        renderSettings();
+        
+        // جلب تلقائي صامت للبيانات من السحابة فور الفتح مثل نظام الوقت والمسؤولية
+        loadCloudData(true);
+
+        // تفعيل مؤقت الخلفية الدوري (Polling) لمزامنة التغييرات العالمية كل 15 ثانية تلقائياً
+        setInterval(() => {
+            loadCloudData(true);
+        }, 15000);
+        
+        window.addEventListener('storage', handleRealtimeSync);
+    };
+
+    // دالة بناء وعرض الهمسة السحابية الرقيقة على زاوية قصية من الشاشة
+    function showWhisper(text) {
+        let whisper = document.getElementById('sync-whisper');
+        if (!whisper) {
+            whisper = document.createElement('div');
+            whisper.id = 'sync-whisper';
+            // موقع الهمسة في أقصى يمين الشاشة أسفل الهيدر قليلاً لعدم التداخل مع عناصر التحكم
+            whisper.style.cssText = "position: fixed; top: 60px; left: 8px; font-size: 10px; color: #7f8c8d; background: rgba(255, 255, 255, 0.93); padding: 3px 8px; border-radius: 6px; pointer-events: none; transition: opacity 0.8s ease; z-index: 999999; border: 1px solid #e2e8f0; font-family: sans-serif; direction: rtl; box-shadow: 0 2px 5px rgba(0,0,0,0.05);";
+            document.body.appendChild(whisper);
+        }
+        whisper.innerText = text;
+        whisper.style.opacity = "1";
+        setTimeout(() => {
+            whisper.style.opacity = "0";
+        }, 3200);
+    }
+
+    // دالة تنظيف ومسح تكرار أسماء الطلاب لمنع تكرار مربعات العرض
+    function deduplicateStudentsList() {
+        let unique = [];
+        let seen = new Set();
+        if (Array.isArray(DB_STUDENTS)) {
+            DB_STUDENTS.forEach(s => {
+                if (s && s.name) {
+                    let cleanName = s.name.trim();
+                    if (!seen.has(cleanName)) {
+                        seen.add(cleanName);
+                        unique.push(s);
+                    }
+                }
+            });
+            DB_STUDENTS = unique;
+            localStorage.setItem('DB_STUDENTS', JSON.stringify(DB_STUDENTS));
+        }
+    }
+
+    // دالة استعادة وحماية السحابة وتنظيفها فوراً وبشكل تلقائي من أي تشوهات أو أسماء مشوهة
+    async function forceRestoreDefaults() {
+        let confirmVal = await showCustomConfirm("تأكيد استعادة وضبط المصنع", "تحذير: سيتم مسح أي تشوهات أو أسماء متداخلة وإعادة النظام والملف السحابي للحالة الافتراضية المكتملة السليمة فوراً. هل تود الاستمرار؟");
+        if (!confirmVal) return;
+
+        DB_STUDENTS = DEFAULT_STUDENTS;
+        DB_GROUPS = [
+            { id: "1", name: "اقرأ (ق)" },
+            { id: "2", name: "رتل (ق)" },
+            { id: "3", name: "ارتق (ق)" },
+            { id: "4", name: "اقرأ (ج)" },
+            { id: "5", name: "رتل (ج)" },
+            { id: "6", name: "ارتق (ج)" }
+        ];
+        localStorage.setItem('DB_STUDENTS', JSON.stringify(DB_STUDENTS));
+        localStorage.setItem('DB_GROUPS', JSON.stringify(DB_GROUPS));
+        localStorage.setItem('quran_last_updated', Date.now().toString());
+        
+        populateLoginGroups();
+        renderSettings();
+        
+        const savedGroup = localStorage.getItem('SAVED_GROUP') || '';
+        if (savedGroup) {
+            if (savedGroup === "الكل") {
+                currentFiltered = DB_STUDENTS;
+            } else {
+                currentFiltered = DB_STUDENTS.filter(s => s.groupName === savedGroup);
+            }
+        } else {
+            currentFiltered = DB_STUDENTS;
+        }
+        populateEvalGroupFilter();
+        syncLiveStudentDropdown();
+        
+        // نرفع هذه النسخة السليمة فوراً لتعيد السحابة تهيئتها بنجاح وتنظيفها
+        await autoSyncCloud(true);
+        
+        showCustomAlert("تم استرداد وضبط الأسماء الأصلية المكتملة بنجاح وتحديث السحاب! ✅", "success");
+    }
+
+    // دالة جلب البيانات السحابية مع صمام أمان فائق الذكاء لحماية البيانات المحلية من التشوه أو التداخل
+    async function loadCloudData(silent = true) {
+        const webAppUrl = localStorage.getItem('quran_google_webapp_url') || DEFAULT_WEBAPP_URL;
+        if (!webAppUrl) {
+            if (!silent) showCustomAlert("لم يتم تحديد رابط المزامنة السحابية في الإعدادات بعد.", "error");
+            return;
+        }
+
+        const syncBox = document.getElementById('sync-indicator');
+        const syncText = document.getElementById('sync-indicator-text');
+        
+        if (!silent) {
+            if (syncBox) syncBox.style.display = "flex";
+            if (syncText) syncText.innerText = "جاري مزامنة وجلب البيانات من السحاب...";
+        } else {
+            showWhisper("☁️ همسة: جاري فحص تحديثات السحاب...");
+        }
+
+        try {
+            const response = await fetch(webAppUrl);
+            if (!response.ok) throw new Error("استجابة الخادم غير صالحة.");
+            const cloudData = await response.json();
+            
+            // صمام الأمان: التحقق من صحة بنية البيانات السحابية قبل التحديث لمنع أي تشوه بالأسماء
+            if (cloudData && typeof cloudData === 'object' && cloudData.lastUpdated) {
+                const localUpdated = parseInt(localStorage.getItem('quran_last_updated') || '0', 10);
+                const cloudUpdated = parseInt(cloudData.lastUpdated, 10);
+                
+                let hasImportedAny = false;
+
+                // مزامنة حالة الامتحانات الجارية الفورية دوماً لضمان تفادي قفل المعلمين للطلاب
+                if (Array.isArray(cloudData.DB_ACTIVE_EXAMS)) {
+                    DB_ACTIVE_EXAMS = cloudData.DB_ACTIVE_EXAMS;
+                    localStorage.setItem('DB_ACTIVE_EXAMS', JSON.stringify(DB_ACTIVE_EXAMS));
+                    if (document.getElementById('tabSardDashboard').classList.contains('active-page')) {
+                        renderSardDashboard();
+                    }
+                }
+
+                // مزامنة السير المعلق سحابياً لمنع الفقدان
+                if (Array.isArray(cloudData.DB_PAUSED_SESSIONS)) {
+                    DB_PAUSED_SESSIONS = cloudData.DB_PAUSED_SESSIONS;
+                    localStorage.setItem('DB_PAUSED_SESSIONS', JSON.stringify(DB_PAUSED_SESSIONS));
+                }
+
+                if (cloudUpdated > localUpdated || !silent) {
+                    // لا نقبل مصفوفة الطلاب إلا إذا كانت تحتوي على أسماء طلاب حقيقية
+                    if (Array.isArray(cloudData.DB_STUDENTS) && cloudData.DB_STUDENTS.length > 0 && cloudData.DB_STUDENTS[0].name) {
+                        DB_STUDENTS = cloudData.DB_STUDENTS;
+                        localStorage.setItem('DB_STUDENTS', JSON.stringify(DB_STUDENTS));
+                        deduplicateStudentsList();
+                        hasImportedAny = true;
+                    }
+                    if (Array.isArray(cloudData.DB_ITEMS) && cloudData.DB_ITEMS.length > 0) {
+                        DB_ITEMS = cloudData.DB_ITEMS;
+                        localStorage.setItem('DB_ITEMS', JSON.stringify(DB_ITEMS));
+                        hasImportedAny = true;
+                    }
+                    if (Array.isArray(cloudData.DB_EVALS)) {
+                        DB_EVALS = cloudData.DB_EVALS;
+                        localStorage.setItem('DB_EVALS', JSON.stringify(DB_EVALS));
+                        hasImportedAny = true;
+                    }
+                    if (Array.isArray(cloudData.DB_GROUPS) && cloudData.DB_GROUPS.length > 0) {
+                        DB_GROUPS = cloudData.DB_GROUPS;
+                        localStorage.setItem('DB_GROUPS', JSON.stringify(DB_GROUPS));
+                        hasImportedAny = true;
+                    }
+                    if (Array.isArray(cloudData.DB_USERS) && cloudData.DB_USERS.length > 0) {
+                        DB_USERS = cloudData.DB_USERS;
+                        localStorage.setItem('DB_USERS', JSON.stringify(DB_USERS));
+                        hasImportedAny = true;
+                    }
+                    if (cloudData.RETEST_THRESHOLD !== undefined) {
+                        retestThresholdScore = parseFloat(cloudData.RETEST_THRESHOLD) || 0;
+                        localStorage.setItem('RETEST_THRESHOLD', retestThresholdScore.toString());
+                        const retestInput = document.getElementById('retestThresholdInput');
+                        if (retestInput) retestInput.value = retestThresholdScore;
+                    }
+                    if (cloudData.RETEST_THRESHOLD_TYPE !== undefined) {
+                        retestThresholdType = cloudData.RETEST_THRESHOLD_TYPE;
+                        localStorage.setItem('RETEST_THRESHOLD_TYPE', retestThresholdType);
+                        const retestTypeSelect = document.getElementById('retestThresholdTypeSelect');
+                        if (retestTypeSelect) retestTypeSelect.value = retestThresholdType;
+                    }
+                    
+                    if (hasImportedAny) {
+                        localStorage.setItem('quran_last_updated', cloudUpdated.toString());
+                        renderSettings();
+                        populateLoginGroups();
+                        
+                        const savedGroup = localStorage.getItem('SAVED_GROUP') || '';
+                        if (savedGroup) {
+                            if (savedGroup === "الكل") {
+                                currentFiltered = DB_STUDENTS;
+                            } else {
+                                currentFiltered = DB_STUDENTS.filter(s => s.groupName === savedGroup);
+                            }
+                        } else {
+                            currentFiltered = DB_STUDENTS;
+                        }
+                        populateEvalGroupFilter();
+                        syncLiveStudentDropdown();
+                    }
+                    
+                    if (!silent && syncText) {
+                        syncText.innerText = "تم مزامنة وجلب البيانات الأحدث من السحاب ✅";
+                    }
+                    if (!silent && hasImportedAny) showCustomAlert("تم استيراد البيانات الأحدث من السحاب بنجاح ✅", "success");
+                } else {
+                    if (!silent && syncText) {
+                        syncText.innerText = "البيانات المحلية الحالية هي الأحدث ومزامنة بالكامل ✅";
+                    }
+                }
+                
+                if (silent) {
+                    showWhisper("☁️ همسة: السحاب متزامن الآن");
+                }
+            } else {
+                if (!silent && syncText) {
+                    syncText.innerText = "البيانات السحابية فارغة أو تالفة ومحمية من الدمج ⚠️";
+                }
+            }
+        } catch (err) {
+            console.error("خطأ في الاتصال السحابي للجلب:", err);
+            if (!silent && syncText) {
+                syncText.innerText = "⚠️ تعذر الاتصال بالسحابة: يرجى التأكد من نشر تطبيق Web App وضبط الصلاحية لـ (Anyone/الجميع)";
+            }
+            if (silent) {
+                showWhisper("☁️ همسة: تعذر الاتصال بالسحاب");
+            }
+        } finally {
+            if (!silent) {
+                setTimeout(() => {
+                    if (syncBox) {
+                        syncBox.style.display = "none";
+                    }
+                }, 4500);
+            }
+        }
+    }
+
+    // تصدير وحفظ نسخة احتياطية سحابية تلقائياً
+    async function autoSyncCloud(silent = true) {
+        const webAppUrl = localStorage.getItem('quran_google_webapp_url') || DEFAULT_WEBAPP_URL;
+        if (!webAppUrl) {
+            if (!silent) showCustomAlert("لم يتم تحديد رابط المزامنة السحابية في الإعدادات بعد.", "error");
+            return;
+        }
+
+        const syncBox = document.getElementById('sync-indicator');
+        const syncText = document.getElementById('sync-indicator-text');
+        
+        if (!silent) {
+            if (syncBox) syncBox.style.display = "flex";
+            if (syncText) syncText.innerText = "جاري حفظ نسخة سحابية جديدة...";
+        } else {
+            showWhisper("☁️ همسة: جاري رفع تحديثات السحاب...");
+        }
+
+        const localData = {
+            DB_STUDENTS: DB_STUDENTS,
+            DB_ITEMS: DB_ITEMS,
+            DB_EVALS: DB_EVALS,
+            DB_GROUPS: DB_GROUPS,
+            DB_USERS: DB_USERS,
+            DB_ACTIVE_EXAMS: DB_ACTIVE_EXAMS, // تضمين امتحانات المعلمين الجارية
+            DB_PAUSED_SESSIONS: DB_PAUSED_SESSIONS, // حفظ جلسات السرد المعلقة في السحاب
+            RETEST_THRESHOLD: retestThresholdScore,
+            RETEST_THRESHOLD_TYPE: retestThresholdType,
+            lastUpdated: parseInt(localStorage.getItem('quran_last_updated') || '0', 10)
+        };
+
+        try {
+            await fetch(webAppUrl, {
+                method: 'POST',
+                mode: 'no-cors',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(localData)
+            });
+            
+            if (!silent && syncText) {
+                syncText.innerText = "تم حفظ التعديلات تلقائياً في السحاب بنجاح! ✅";
+            }
+            if (silent) {
+                showWhisper("☁️ همسة: تم حفظ البيانات سحابياً");
+            }
+        } catch (err) {
+            console.error("خطأ في المزامنة السحابية للرفع:", err);
+            if (!silent && syncText) {
+                syncText.innerText = "خطأ في المزامنة السحابية ❌";
+            }
+            if (silent) {
+                showWhisper("☁️ همسة: فشل الحفظ السحابي");
+            }
+        } finally {
+            if (!silent) {
+                setTimeout(() => {
+                    if (syncBox) {
+                        syncBox.style.display = "none";
+                    }
+                }, 4000);
+            }
+        }
+    }
+
+    async function saveWebAppUrl() {
+        const urlInput = document.getElementById('setting-webapp-url').value.trim();
+        localStorage.setItem('quran_google_webapp_url', urlInput || DEFAULT_WEBAPP_URL);
+        showCustomAlert("تم حفظ رابط المزامنة السحابية. يجري الاتصال الآن بالخادم السحابي...", "info");
+        await autoSyncCloud(false);
+    }
+
+    async function syncFromCloud(silent = false) {
+        await loadCloudData(silent);
+    }
+
+    async function syncToCloud(silent = false) {
+        await autoSyncCloud(silent);
+    }
+
+    async function autoSaveAndSync() {
+        localStorage.setItem('quran_last_updated', Date.now().toString());
+        await autoSyncCloud(true);
+    }
+
+    function toggleLoginScope() {
+        const scope = document.getElementById('loginScopeSelect').value;
+        const container = document.getElementById('loginGroupSelectContainer');
+        if (scope === 'all') {
+            container.style.display = 'none';
+        } else {
+            container.style.display = 'block';
+        }
+    }
+
+    function populateLoginGroups() {
+        const select = document.getElementById('loginGroupSelect');
+        if (select) {
+            select.innerHTML = DB_GROUPS.map((g, idx) => `<option value="${idx}">${g.name}</option>`).join('');
+        }
+    }
+
+    async function processLogin() {
+        const username = document.getElementById('loginUsernameInput').value.trim();
+        const password = document.getElementById('loginPasswordInput').value.trim();
+        const scope = document.getElementById('loginScopeSelect').value;
+        
+        if (!username || !password) {
+            return showCustomAlert("يرجى إدخال اسم المستخدم والرقم السري.", "error");
+        }
+
+        const foundUser = DB_USERS.find(u => u.username === username && u.password === password);
+        if (!foundUser) {
+            return showCustomAlert("خطأ: اسم المستخدم أو الرقم السري غير صحيح!", "error");
+        }
+
+        let selectedGroup = "";
+        if (scope === "all") {
+            selectedGroup = "الكل";
+            currentFiltered = DB_STUDENTS;
+            showCustomAlert("تم تسجيل الدخول بصلاحيات الإشراف الكامل على جميع الطلاب.", "success");
+        } else {
+            if (foundUser.groupName === "الكل") {
+                const groupIndex = document.getElementById('loginGroupSelect').value;
+                if (groupIndex === "" || DB_GROUPS.length === 0) {
+                    return showCustomAlert("الرجاء تحديد الحلقة أو المجموعة التي ترغب بإدارتها.", "error");
+                }
+                selectedGroup = DB_GROUPS[groupIndex].name;
+            } else {
+                selectedGroup = foundUser.groupName;
+            }
+            showCustomAlert(`مرحباً بك معلم حلقة: ${selectedGroup}. تم توجيهك بنجاح.`, "success");
+            currentFiltered = DB_STUDENTS.filter(s => s.groupName === selectedGroup);
+        }
+
+        localStorage.setItem('SAVED_TEACHER', foundUser.teacherName);
+        localStorage.setItem('SAVED_GROUP', selectedGroup);
+        
+        activeTeacherNames = foundUser.teacherName;
+        activeGroupName = selectedGroup;
+        activeSessionCode = Math.floor(10000 + Math.random() * 90000).toString();
+        
+        populateEvalGroupFilter();
+        
+        const evalGroupDrop = document.getElementById('evalGroupFilter');
+        if (evalGroupDrop) {
+            evalGroupDrop.value = selectedGroup;
+        }
+        
+        syncLiveStudentDropdown();
+        
+        if (currentFiltered.length === 0) {
+            showCustomAlert("تم تسجيل الدخول بنجاح! لا يوجد طلاب في الحلقة، تم تحويلك للإعدادات.", "info");
+            sessionStorage.setItem('isSettingsUnlocked', 'true');
+            isSettingsUnlocked = true; 
+            openTab('tabSettings');
+        } else {
+            openTab('tabSardDashboard'); 
+        }
+    }
+
+    async function saveRetestThreshold() {
+        let val = parseFloat(document.getElementById('retestThresholdInput').value) || 0;
+        retestThresholdScore = val;
+        try { 
+            localStorage.setItem('RETEST_THRESHOLD', retestThresholdScore.toString()); 
+            await autoSaveAndSync();
+        } catch(e) {}
+        showCustomAlert("تم حفظ إعدادات الإعادة التلقائية بنجاح.", "success");
+    }
+
+    async function saveRetestThresholdType() {
+        const val = document.getElementById('retestThresholdTypeSelect').value;
+        retestThresholdType = val;
+        try {
+            localStorage.setItem('RETEST_THRESHOLD_TYPE', retestThresholdType);
+            await autoSaveAndSync();
+        } catch(e) {}
+        showCustomAlert("تم تعديل وحفظ طريقة احتساب الإعادة بنجاح.", "success");
+    }
+
+    function toggleExamMode() {
+        const mode = document.getElementById('examModeSelect').value;
+        const autoInputs = document.getElementById('autoConfigInputs');
+        const manualInputs = document.getElementById('manualConfigInputs');
+        
+        if(mode === 'auto') {
+            autoInputs.style.display = 'flex'; manualInputs.style.display = 'none';
+        } else if (mode === 'full') {
+            autoInputs.style.display = 'none'; manualInputs.style.display = 'none';
+        } else if (mode === 'manual') {
+            autoInputs.style.display = 'none'; manualInputs.style.display = 'flex';
+        }
+    }
+
+    // إعداد هيكل واجهة المستخدم أثناء السرد (مظهر ملء 3/4 الصفحة)
+    function setRecitationViewMode(isActive) {
+        const qCenter = document.getElementById('quranCenterContainer');
+        const selectorStrip = document.querySelector('.student-selector-strip');
+        const configBox = document.querySelector('.config-box');
+        
+        if (isActive) {
+            if (qCenter) qCenter.classList.add('fullscreen-mode');
+            if (selectorStrip) selectorStrip.style.display = 'none';
+            if (configBox) configBox.style.display = 'none';
+        } else {
+            if (qCenter) qCenter.classList.remove('fullscreen-mode');
+            if (selectorStrip) selectorStrip.style.display = 'flex';
+            if (configBox) configBox.style.display = 'block';
+        }
+    }
+
+    function toggleSardType() {
+        const type = document.getElementById('evalSardTypeSelect').value;
+        const singleContainer = document.getElementById('singleSurahContainer');
+        const rangeContainer = document.getElementById('rangeSurahContainer');
+        const juzContainer = document.getElementById('juzSurahContainer');
+
+        if (type === 'single') {
+            singleContainer.style.display = 'block';
+            rangeContainer.style.display = 'none';
+            juzContainer.style.display = 'none';
+        } else if (type === 'range') {
+            singleContainer.style.display = 'none';
+            rangeContainer.style.display = 'flex';
+            juzContainer.style.display = 'none';
+        } else if (type === 'juz') {
+            singleContainer.style.display = 'none';
+            rangeContainer.style.display = 'none';
+            juzContainer.style.display = 'block';
+        }
+    }
+
+    async function openTab(id) {
+        if ((id === 'tabEval' || id === 'tabSardDashboard') && (!activeTeacherNames || !activeGroupName)) {
+            showCustomAlert("يرجى تسجيل الدخول باسم المستخدم والرقم السري أولاً.", "error");
+            id = 'tabLogin';
+        }
+        
+        if (id === 'tabSettings') {
+            if (!isSettingsUnlocked) {
+                let pw = await showCustomPrompt("الرجاء إدخال الرقم السري لفتح الإعدادات:", "الرقم السري", true);
+                if (pw === "1973") {
+                    sessionStorage.setItem('isSettingsUnlocked', 'true');
+                    isSettingsUnlocked = true;
+                } else {
+                    showCustomAlert("الرمز السري غير صحيح! لا يمكن فتح شاشة الإعدادات.", "error");
+                    return; 
+                }
+            }
+        }
+
+        document.querySelectorAll('.page').forEach(p => p.classList.remove('active-page'));
+        document.getElementById(id).classList.add('active-page');
+        document.querySelectorAll('.nav-tabs button').forEach(b => b.classList.remove('active'));
+        
+        let tabButton = document.getElementById('btn' + id.charAt(0).toUpperCase() + id.slice(1));
+        if (tabButton) tabButton.classList.add('active');
+
+        if(id === 'tabResults') updateResults();
+        if(id === 'tabSardDashboard') renderSardDashboard();
+    }
+
+    function getDeterministicRandom(seed) { let x = Math.sin(seed) * 10000; return x - Math.floor(x); }
+    
+    function broadcastSyncEvent(actionName, payloadData) {
+        if(!activeSessionCode) return;
+        const syncMessage = { session: activeSessionCode, action: actionName, data: payloadData, timestamp: Date.now() };
+        try { localStorage.setItem('QURAN_SYNC_CHANNEL', JSON.stringify(syncMessage)); } catch(e) {}
+    }
+
+    function handleRealtimeSync(event) {
+        if(event.key === 'QURAN_SYNC_CHANNEL' && event.newValue) {
+            try {
+                const msg = JSON.parse(event.newValue);
+                if(msg.session !== activeSessionCode) return; 
+                document.getElementById('syncStatus').innerText = "تم استقبال مزامنة من اللجنة 🔄";
+                setTimeout(() => document.getElementById('syncStatus').innerText = "", 2000);
+
+                if(msg.action === 'CHANGE_STUDENT') {
+                    document.getElementById('studentDropdown').value = msg.data.index; onStudentSelectChange(true);
+                } else if(msg.action === 'SAVE_RESULT') {
+                    if(!DB_EVALS.find(e => e.id === msg.data.id)) {
+                        DB_EVALS.push(msg.data); localStorage.setItem('DB_EVALS', JSON.stringify(DB_EVALS));
+                        if (document.getElementById('tabResults').classList.contains('active-page')) updateResults();
+                    }
+                } else if(msg.action === 'SYNC_STUDENTS') {
+                    DB_STUDENTS = msg.data; localStorage.setItem('DB_STUDENTS', JSON.stringify(DB_STUDENTS));
+                    if (document.getElementById('tabSettings').classList.contains('active-page')) renderSettings();
+                    syncLiveStudentDropdown();
+                } else if(msg.action === 'SYNC_EVAL_BUTTONS') {
+                    DB_ITEMS = msg.data; localStorage.setItem('DB_ITEMS', JSON.stringify(DB_ITEMS));
+                    if (document.getElementById('tabSettings').classList.contains('active-page')) renderSettings();
+                    renderEvalPad();
+                }
+            } catch(e) {}
+        }
+    }
+
+    // بناء لوحة السرد الطلابي التفاعلية مع تلوين مربع الطالب المستأنف باللون البرتقالي [1][2]
+    function renderSardDashboard() {
+        const grid = document.getElementById('sardDashboardGrid');
+        if (!grid) return;
+
+        const now = new Date();
+        const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+
+        if (currentFiltered.length === 0) {
+            grid.innerHTML = `<div style="grid-column:1/-1; text-align:center; padding:20px; font-weight:bold; color:#7f8c8d;">لا يوجد طلاب متاحين في هذه الحلقة حالياً.</div>`;
+            return;
+        }
+
+        grid.innerHTML = currentFiltered.map(student => {
+            if (!student) return '';
+            
+            // جلب حالة الامتحان السحابي الجاري الفعلي للطالب لمعرفة المعلم الفاحص
+            const activeExam = DB_ACTIVE_EXAMS.find(ae => ae.studentId.toString() === student.id.toString());
+            let isCurrentlyTesting = !!activeExam;
+            let testingByTeacher = activeExam ? activeExam.teacherName : "";
+            let isMeExamining = isCurrentlyTesting && (testingByTeacher === activeTeacherNames);
+            
+            const todayEvals = DB_EVALS.filter(e => e && e.name === student.name && e.date === todayStr);
+            let statusClass = "not-yet";
+            let statusText = "لم يسرد بعد ⚪";
+            let clickAction = `jumpToStudentSard('${student.id}')`;
+
+            // التحقق من وجود سرد معلق للطلاب لتلوين المربع بالبرتقالي وكتابة صفة السرد [1][2]
+            const pausedSession = DB_PAUSED_SESSIONS.find(ps => ps.studentId.toString() === student.id.toString());
+
+            if (isCurrentlyTesting) {
+                statusClass = "testing";
+                if (isMeExamining) {
+                    statusText = "جاري امتحانك له الآن 🔵";
+                } else {
+                    statusText = `يمتحنه: ${testingByTeacher} 🔵`;
+                    // قفل المربع ومنع الاستجابة في حال كان المعلم فاحصاً مغايراً
+                    clickAction = `showLockedStudentAlert('${student.name}', '${testingByTeacher}')`;
+                }
+            } else if (pausedSession) {
+                statusClass = "paused-sard";
+                let sardDescription = "سرد معلق";
+                if (pausedSession.sardType === 'juz') {
+                    sardDescription = "معلق: سرد جزء";
+                } else if (pausedSession.sardType === 'range') {
+                    sardDescription = "معلق: سرد نطاق";
+                } else {
+                    sardDescription = "معلق: سرد سورة";
+                }
+                statusText = `${sardDescription} ⏸️`;
+            } else if (todayEvals.length > 0) {
+                const hasRetest = todayEvals.some(e => {
+                    const isScoreRetest = retestThresholdScore > 0 && parseFloat(e.score) <= retestThresholdScore;
+                    const isNoteRetest = e.note && (e.note.includes("يعاد") || e.note.includes("خارج من السرد") || e.note.includes("لم ينه السرد"));
+                    const isDidNotFinish = e.didNotFinish === true; 
+                    return isScoreRetest || isNoteRetest || isDidNotFinish;
+                });
+
+                if (hasRetest) {
+                    statusClass = "failed";
+                    statusText = "لم يتمكن من السرد 🔴";
+                } else {
+                    statusClass = "passed";
+                    statusText = "تم السرد بنجاح 🟢";
+                }
+            }
+
+            return `
+                <div class="sard-student-box ${statusClass}" onclick="${clickAction}">
+                    <div style="font-size:12px; margin-bottom:5px; font-weight:bold;">👤 ${student.name}</div>
+                    <div style="font-size:10px; opacity:0.85;">${statusText}</div>
+                </div>
+            `;
+        }).join('');
+    }
+
+    // دالة تنبيه إغلاق المربع تفادياً للتداخل بين المعلمين
+    function showLockedStudentAlert(studentName, teacherName) {
+        showCustomAlert(`⚠️ الطالب (${studentName}) يخضع للاختبار حالياً لدى المعلم (${teacherName}). لا يمكنك التعديل عليه!`, "error");
+    }
+
+    function jumpToStudentSard(studentId) {
+        const index = currentFiltered.findIndex(s => s.id.toString() === studentId.toString());
+        if (index !== -1) {
+            document.getElementById('studentDropdown').value = index;
+            onStudentSelectChange(false);
+            openTab('tabEval');
+            showCustomAlert(`تم تفعيل السرد للطالب: ${activeStudent.name}. حدد طريقة السرد وابدأ التقييم مباشرة.`, "success");
+        }
+    }
+
+    function populateEvalGroupFilter() {
+        const filterSelect = document.getElementById('evalGroupFilter');
+        if (!filterSelect) return;
+        
+        let html = '';
+        if (activeGroupName) {
+            html += `<option value="${activeGroupName}">مجموعتك النشطة (${activeGroupName})</option>`;
+        }
+        html += `<option value="الكل">كل الطلاب المضافين بالنظام (الكل)</option>`;
+        
+        DB_GROUPS.forEach(g => {
+            if (g.name !== activeGroupName) {
+                html += `<option value="${g.name}">${g.name}</option>`;
+            }
+        });
+        filterSelect.innerHTML = html;
+    }
+
+    function onEvalGroupFilterChange() {
+        const filterVal = document.getElementById('evalGroupFilter').value;
+        if (filterVal === "الكل") {
+            currentFiltered = DB_STUDENTS;
+        } else {
+            currentFiltered = DB_STUDENTS.filter(s => s.groupName === filterVal);
+        }
+        syncLiveStudentDropdown();
+    }
+
+    function renderStudentScrollStrip() {
+        const stripContainer = document.getElementById('studentScrollStrip');
+        if (!stripContainer) return;
+        
+        if (currentFiltered.length === 0) {
+            stripContainer.innerHTML = `<span style="color:#7f8c8d; font-size:12px; padding:6px; display:block; margin:auto;">لا يوجد طلاب في التصفية الحالية</span>`;
+            return;
+        }
+        
+        stripContainer.innerHTML = currentFiltered.map((s, idx) => {
+            const isSelected = activeStudent && activeStudent.id.toString() === s.id.toString();
+            const buttonStyle = isSelected 
+                ? `background: var(--s); color: white; border-color: var(--s); box-shadow: 0 2px 6px rgba(39, 174, 96, 0.4);` 
+                : `background: white; color: var(--p); border-color: #ccc;`;
+            
+            return `
+                <button onclick="selectStudentByStripIndex(${idx})" style="flex-shrink: 0; border: 1.5px solid; border-radius: 10px; padding: 4px 10px; font-size: 11px; font-weight: bold; cursor: pointer; transition: all 0.2s ease; ${buttonStyle}">
+                    👤 ${s.name}
+                </button>
+            `;
+        }).join('');
+
+        if (activeStudent) {
+            const activeIdx = currentFiltered.findIndex(s => s.id.toString() === activeStudent.id.toString());
+            if (activeIdx !== -1) {
+                const buttons = stripContainer.getElementsByTagName('button');
+                if (buttons && buttons[activeIdx]) {
+                    buttons[activeIdx].scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
+                }
+            }
+        }
+    }
+
+    function selectStudentByStripIndex(idx) {
+        const drop = document.getElementById('studentDropdown');
+        if (drop) {
+            drop.value = idx;
+            onStudentSelectChange(false);
+        }
+    }
+
+    function syncLiveStudentDropdown() {
+        const drop = document.getElementById('studentDropdown');
+        if(drop) {
+            drop.innerHTML = currentFiltered.map((s, idx) => `<option value="${idx}">${s.name}</option>`).join('');
+            if (activeStudent) {
+                const newIdx = currentFiltered.findIndex(s => s.id.toString() === activeStudent.id.toString());
+                if (newIdx !== -1) {
+                    drop.value = newIdx;
+                } else {
+                    if(currentFiltered.length > 0) { 
+                        drop.value = 0; 
+                        onStudentSelectChange(true); 
+                    } else { 
+                        activeStudent = null; 
+                        document.getElementById('evalArea').style.display = "none"; 
+                    }
+                }
+            } else if (currentFiltered.length > 0) {
+                drop.value = 0;
+                onStudentSelectChange(true);
+            }
+        }
+        renderStudentScrollStrip();
+    }
+
+    async function saveStudentsBulk() {
+        const raw = document.getElementById('bulkNames').value.trim();
+        const selectElem = document.getElementById('bulkNamesGroupSelect');
+        let targetGroup = selectElem ? selectElem.value : "";
+        
+        if (!targetGroup && DB_GROUPS.length > 0) targetGroup = DB_GROUPS[0].name;
+        if (!targetGroup) targetGroup = "حلقة عامة";
+
+        let added = false;
+        if(raw) { 
+            raw.split('\n').forEach(line => { 
+                let name = line.trim(); 
+                if(name) { 
+                    const newId = Date.now().toString() + Math.floor(Math.random() * 1000).toString();
+                    DB_STUDENTS.push({ id: newId, name: name, groupName: targetGroup }); 
+                    added = true; 
+                } 
+            }); 
+        }
+
+        if(added) {
+            try { 
+                localStorage.setItem('DB_STUDENTS', JSON.stringify(DB_STUDENTS)); 
+                deduplicateStudentsList();
+            } catch(e) {}
+            document.getElementById('bulkNames').value = "";
+            renderSettings(); 
+            
+            if (activeGroupName) {
+                currentFiltered = DB_STUDENTS.filter(s => s.groupName === activeGroupName);
+            } else {
+                currentFiltered = DB_STUDENTS;
+            }
+            populateEvalGroupFilter();
+            syncLiveStudentDropdown(); 
+            broadcastSyncEvent('SYNC_STUDENTS', DB_STUDENTS);
+            await autoSaveAndSync();
+            showCustomAlert("تم حفظ الأسماء وتنسيبها بنجاح للحلقة المحددة.", "success");
+        } else { showCustomAlert("يرجى كتابة اسم واحد على الأقل.", "error"); }
+    }
+
+    async function deleteAllStudents() {
+        let confirmVal = await showCustomConfirm("تأكيد الحذف", "تحذير: سيتم مسح جميع أسماء الطلاب المضافين نهائياً؟");
+        if(confirmVal) {
+            DB_STUDENTS = []; 
+            try { 
+                localStorage.setItem('DB_STUDENTS', JSON.stringify(DB_STUDENTS)); 
+                await autoSaveAndSync();
+            } catch(e) {}
+            renderSettings(); 
+            populateEvalGroupFilter();
+            syncLiveStudentDropdown(); 
+            broadcastSyncEvent('SYNC_STUDENTS', DB_STUDENTS);
+            showCustomAlert("تم مسح كافة أسماء الطلاب بنجاح.", "success");
+        }
+    }
+
+    function renderSettings() {
+        document.getElementById('studentListManage').innerHTML = DB_STUDENTS.map(s => 
+            `<div style="display:flex; justify-content:space-between; border-bottom:1px solid #eee; padding:5px 0;">
+                <span><strong>${s.name}</strong> (${s.groupName || 'بدون مجموعة'})</span> 
+                <button onclick="delStud('${s.id}')" style="color:red;border:none;background:none;cursor:pointer; font-weight:bold;">✖ حذف</button>
+            </div>`
+        ).join('') || "<div style='text-align:center; padding:10px;'>لا توجد أسماء مسجلة حالياً</div>";
+        
+        document.getElementById('itemsListManage').innerHTML = DB_ITEMS.map(it => {
+            const isBonus = it.deduct < 0; 
+            const sign = isBonus ? '+' : '-'; 
+            const defaultColor = it.color || (it.cat === 'hifz' ? '#e67e22' : '#8e44ad');
+            return `
+                <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid #eee; padding:5px 0;">
+                    <div style="display:flex; align-items:center; gap:8px;">
+                        <input type="color" value="${defaultColor}" onchange="updateItemColor('${it.id}', this.value)" style="width:25px; height:25px; border:none; border-radius:4px; cursor:pointer;" title="تغيير لون الزر">
+                        <span style="font-weight:bold; color:${defaultColor}">${it.name} (${sign}${Math.abs(it.deduct)})</span>
+                    </div>
+                    <button onclick="delItem('${it.id}')" style="color:red;border:none;background:none;cursor:pointer; font-weight:bold;">✖</button>
+                </div>
+            `;
+        }).join('');
+
+        document.getElementById('groupListManage').innerHTML = DB_GROUPS.map(g => 
+            `<div style="display:flex; justify-content:space-between; border-bottom:1px solid #eee; padding:5px 0;">
+                <span>${g.name}</span> 
+                <button onclick="delGroup('${g.id}')" style="color:red;border:none;background:none;cursor:pointer; font-weight:bold;">✖ حذف</button>
+            </div>`
+        ).join('') || "<div style='text-align:center; padding:10px;'>لا توجد مجموعات مضافة حالياً</div>";
+
+        document.getElementById('usersListManage').innerHTML = DB_USERS.map(u => 
+            `<div style="display:flex; justify-content:space-between; border-bottom:1px solid #eee; padding:5px 0;">
+                <span>👤 <strong>${u.username}</strong> (${u.teacherName}) - المجموعة: <strong style="color:var(--a);">${u.groupName}</strong></span> 
+                <button onclick="delUser('${u.username}')" style="color:red;border:none;background:none;cursor:pointer; font-weight:bold;">✖ حذف</button>
+            </div>`
+        ).join('') || "<div style='text-align:center; padding:10px;'>لا توجد حسابات مضافة حالياً</div>";
+
+        let groupOptions = DB_GROUPS.map(g => `<option value="${g.name}">${g.name}</option>`).join('');
+        const bulkGroupSelect = document.getElementById('bulkNamesGroupSelect');
+        if (bulkGroupSelect) bulkGroupSelect.innerHTML = groupOptions;
+        const newUserGroupSelect = document.getElementById('newUserGroupSelect');
+        if (newUserGroupSelect) newUserGroupSelect.innerHTML = `<option value="الكل">كل المجموعات (صلاحية كاملة)</option>` + groupOptions;
+
+        // تعبئة وتحديث قائمة الطلاب داخل منسدلة الإرجاع إلى المربع الأبيض بالإعدادات
+        const resetSelect = document.getElementById('resetSingleStudentSelect');
+        if (resetSelect) {
+            resetSelect.innerHTML = DB_STUDENTS.map(s => `<option value="${s.id}">${s.name} (${s.groupName})</option>`).join('');
+        }
+    }
+    
+    // دالة سريعة تفاعلية لتحديث ألوان أزرار التقييم في المتصفح والسحاب فوراً
+    async function updateItemColor(id, newColor) {
+        const item = DB_ITEMS.find(it => it.id.toString() === id.toString());
+        if (item) {
+            item.color = newColor;
+            localStorage.setItem('DB_ITEMS', JSON.stringify(DB_ITEMS));
+            renderSettings();
+            renderEvalPad();
+            broadcastSyncEvent('SYNC_EVAL_BUTTONS', DB_ITEMS);
+            await autoSaveAndSync();
+            showCustomAlert("تم تحديث لون الزر بنجاح 🎨", "success");
+        }
+    }
+    
+    async function delStud(id) { 
+        DB_STUDENTS = DB_STUDENTS.filter(s => s.id.toString() !== id.toString()); 
+        try { 
+            localStorage.setItem('DB_STUDENTS', JSON.stringify(DB_STUDENTS)); 
+            await autoSaveAndSync();
+        } catch(e) {} 
+        renderSettings(); 
+        if (activeGroupName) {
+            currentFiltered = DB_STUDENTS.filter(s => s.groupName === activeGroupName);
+        } else {
+            currentFiltered = DB_STUDENTS;
+        }
+        populateEvalGroupFilter();
+        syncLiveStudentDropdown(); 
+        broadcastSyncEvent('SYNC_STUDENTS', DB_STUDENTS); 
+    }
+
+    async function delItem(id) { 
+        DB_ITEMS = DB_ITEMS.filter(i => i.id.toString() !== id.toString()); 
+        try { 
+            localStorage.setItem('DB_ITEMS', JSON.stringify(DB_ITEMS)); 
+            await autoSaveAndSync();
+        } catch(e) {} 
+        renderSettings(); 
+        renderEvalPad(); 
+        broadcastSyncEvent('SYNC_EVAL_BUTTONS', DB_ITEMS); 
+    }
+
+    async function addNewGroup() {
+        const name = document.getElementById('newGroupNameInput').value.trim();
+        if (!name) return showCustomAlert("الرجاء كتابة اسم المجموعة.", "error");
+        
+        const newGroupId = Date.now().toString() + Math.floor(Math.random() * 100).toString();
+        DB_GROUPS.push({ id: newGroupId, name: name });
+        try { 
+            localStorage.setItem('DB_GROUPS', JSON.stringify(DB_GROUPS)); 
+            await autoSaveAndSync();
+        } catch(e) {}
+        document.getElementById('newGroupNameInput').value = "";
+        renderSettings();
+        populateLoginGroups();
+        showCustomAlert("تمت إضافة المجموعة بنجاح.", "success");
+    }
+
+    async function delGroup(id) {
+        let confirmVal = await showCustomConfirm("تأكيد حذف المجموعة", "هل أنت متأكد من حذف هذه المجموعة؟ سيتم إزالتها نهائياً.");
+        if (confirmVal) {
+            DB_GROUPS = DB_GROUPS.filter(g => g.id.toString() !== id.toString());
+            try { 
+                localStorage.setItem('DB_GROUPS', JSON.stringify(DB_GROUPS)); 
+                await autoSaveAndSync();
+            } catch(e) {}
+            renderSettings();
+            populateLoginGroups();
+            showCustomAlert("تم حذف المجموعة بنجاح.", "success");
+        }
+    }
+
+    async function addNewUser() {
+        const username = document.getElementById('newUsernameInput').value.trim();
+        const password = document.getElementById('newPasswordInput').value.trim();
+        const teacherName = document.getElementById('newTeacherNameInput').value.trim();
+        const groupName = document.getElementById('newUserGroupSelect').value;
+
+        if (!username || !password || !teacherName) {
+            return showCustomAlert("الرجاء إدخال اسم المستخدم، الرقم السري واسم المعلم بالكامل.", "error");
+        }
+
+        if (DB_USERS.some(u => u.username === username)) {
+            return showCustomAlert("اسم المستخدم مسجل مسبقاً! الرجاء اختيار اسم مستخدم آخر.", "error");
+        }
+
+        DB_USERS.push({ username, password, teacherName, groupName: groupName });
+        try { 
+            localStorage.setItem('DB_USERS', JSON.stringify(DB_USERS)); 
+            await autoSaveAndSync();
+        } catch(e) {}
+        
+        document.getElementById('newUsernameInput').value = "";
+        document.getElementById('newPasswordInput').value = "";
+        document.getElementById('newTeacherNameInput').value = "";
+        
+        renderSettings();
+        showCustomAlert("تمت إضافة حساب المعلم بنجاح.", "success");
+    }
+
+    async function delUser(username) {
+        if (DB_USERS.length <= 1) {
+            return showCustomAlert("لا يمكن حذف الحساب الوحيد في النظام!", "error");
+        }
+        let confirmVal = await showCustomConfirm("تأكيد الحذف", `هل أنت متأكد من حذف حساب المعلم "${username}"؟`);
+        if (confirmVal) {
+            DB_USERS = DB_USERS.filter(u => u.username !== username);
+            try { 
+                localStorage.setItem('DB_USERS', JSON.stringify(DB_USERS)); 
+                await autoSaveAndSync();
+            } catch(e) {}
+            renderSettings();
+            showCustomAlert("تم حذف حساب المعلم بنجاح.", "success");
+        }
+    }
+
+    async function addNewEvalBtn() {
+        const name = document.getElementById('btnName').value.trim();
+        let deduct = parseFloat(document.getElementById('btnDeduct').value);
+        const type = document.getElementById('btnType').value;
+        const cat = document.getElementById('btnCat').value;
+        const color = document.getElementById('btnColor').value;
+        if(!name) return showCustomAlert("الرجاء كتابة اسم زر الخصم/الرصيد أولاً.", "error");
+        
+        if(type === 'bonus') deduct = -Math.abs(deduct); else deduct = Math.abs(deduct);
+        const newBtnId = Date.now().toString() + Math.floor(Math.random() * 100).toString();
+        DB_ITEMS.push({ id: newBtnId, name, deduct, cat, isBonus: type==='bonus', color: color });
+        try { 
+            localStorage.setItem('DB_ITEMS', JSON.stringify(DB_ITEMS)); 
+            await autoSaveAndSync();
+        } catch(e) {}
+        document.getElementById('btnName').value = ""; 
+        renderSettings(); 
+        renderEvalPad(); 
+        broadcastSyncEvent('SYNC_EVAL_BUTTONS', DB_ITEMS);
+        showCustomAlert("تمت إضافة زر التقييم للوحة بنجاح.", "success");
+    }
+
+    function navStudent(dir, skipBroadcast = false) {
+        let d = document.getElementById('studentDropdown'); let n = parseInt(d.value) + dir;
+        if(n >= 0 && n < currentFiltered.length) { d.value = n; onStudentSelectChange(skipBroadcast); }
+    }
+
+    // دالة فحص وتحديد السورة التلقائية الذكية التي عليها الدور للطالب النشط
+    function autoSelectNextSurahForActiveStudent() {
+        if (!activeStudent) return;
+        
+        // التحقق أولاً من وجود سرد معلق للطلب؛ لتجنب التشويش على بياناته
+        const isPaused = DB_PAUSED_SESSIONS.some(ps => ps.studentId.toString() === activeStudent.id.toString());
+        if (isPaused) return;
+
+        const studentEvals = DB_EVALS.filter(e => e.name === activeStudent.name && !e.didNotFinish);
+        if (studentEvals.length > 0) {
+            // فرز آخر تقييم مكتمل وناجح للطالب لمعرفة أين وصل
+            const lastEval = studentEvals[studentEvals.length - 1];
+            const lastSurahName = lastEval.testedSurahs;
+            const lastSurahObj = quranSurahs.find(s => s.n === lastSurahName);
+            if (lastSurahObj) {
+                const nextId = lastSurahObj.id + 1;
+                if (nextId <= 114) {
+                    const surahSelect = document.getElementById('surahSelect');
+                    if (surahSelect) surahSelect.value = nextId;
+                    const sardFrom = document.getElementById('sardFromSurah');
+                    if (sardFrom) sardFrom.value = nextId;
+                    
+                    // تحديث التسميع الأحادي أو المتتابع تكتيكياً
+                    toggleSardType();
+                }
+            }
+        }
+    }
+
+    // التحقق من حالة وجود جلسة سرد معلقة تفاعلياً
+    function checkPausedSessionUI() {
+        const banner = document.getElementById('resumeSardBanner');
+        const text = document.getElementById('resumeSardText');
+        if (!banner || !text) return;
+        
+        if (!activeStudent) {
+            banner.style.display = "none";
+            return;
+        }
+        
+        const paused = DB_PAUSED_SESSIONS.find(ps => ps.studentId.toString() === activeStudent.id.toString());
+        if (paused) {
+            const fromSurah = quranSurahs.find(s => s.id == paused.sardSequence[0]);
+            const toSurah = quranSurahs.find(s => s.id == paused.sardSequence[paused.sardSequence.length - 1]);
+            const currentSurah = quranSurahs.find(s => s.id == paused.sardSequence[paused.sardCurrentIndex]);
+            
+            text.innerHTML = `⚠️ الطالب لديه سرد معلّق سابقاً غير مكتمل (${paused.sardType === 'juz' ? 'جزء كامل' : 'نطاق مخصص'}) من سورة <strong>${fromSurah ? fromSurah.n : ''}</strong> إلى <strong>${toSurah ? toSurah.n : ''}</strong>.<br>وصل عند سورة <strong>${currentSurah ? currentSurah.n : ''}</strong> (المتبقي ${paused.sardSequence.length - paused.sardCurrentIndex} سور). هل ترغب في استئنافه؟`;
+            banner.style.display = "block";
+        } else {
+            banner.style.display = "none";
+        }
+    }
+
+    // استئناف جلسة سرد معلقة
+    async function resumeSuspendedSard() {
+        if (!activeStudent) return;
+        const paused = DB_PAUSED_SESSIONS.find(ps => ps.studentId.toString() === activeStudent.id.toString());
+        if (!paused) return;
+        
+        sardSequence = paused.sardSequence;
+        sardCurrentIndex = paused.sardCurrentIndex;
+        sardAccumulatedSeconds = paused.accumulatedTimeSeconds || 0;
+        sardSessionScores = paused.sardSessionScores || [];
+        sardSessionId = paused.sardSessionId;
+        isSardActive = (sardSequence.length > 1);
+        currentScore = paused.savedScore !== undefined ? paused.savedScore : 50.00;
+        
+        document.getElementById('evalSardTypeSelect').value = paused.sardType;
+        toggleSardType();
+        
+        document.getElementById('resumeSardBanner').style.display = "none";
+        
+        document.getElementById('btnActualStart').style.display = "block";
+        document.getElementById('btnPrepareExam').title = "🔄 إعادة التحضير";
+        
+        loadActiveSardSurah(true); 
+        
+        showCustomAlert("تم استئناف جلسة السرد وحمل الوقت التراكمي بنجاح! ⏱️", "success");
+    }
+
+    // حذف وحظر الجلسة المعلقة الحالية للبدء من الصفر
+    async function discardSuspendedSard() {
+        if (!activeStudent) return;
+        let confirmVal = await showCustomConfirm("تأكيد حذف السرد المعلق", "هل أنت متأكد من إلغاء السرد المعلق والبدء من جديد؟ سيتم حذف حالة الحفظ المؤقتة لهذا الطالب نهائياً.");
+        if (confirmVal) {
+            DB_PAUSED_SESSIONS = DB_PAUSED_SESSIONS.filter(ps => ps.studentId.toString() !== activeStudent.id.toString());
+            localStorage.setItem('DB_PAUSED_SESSIONS', JSON.stringify(DB_PAUSED_SESSIONS));
+            checkPausedSessionUI();
+            await autoSaveAndSync();
+            showCustomAlert("تم إلغاء السرد المعلق واستعادة وضع التحضير الجديد.", "info");
+        }
+    }
+
+    // تعليق السرد مؤقتاً وحفظ الحالة الحالية بالكامل
+    async function pauseSardTemporarily() {
+        if (!activeStudent) return;
+        
+        let runSeconds = isTimerRunning ? Math.floor((Date.now() - sardStartTime) / 1000) : 0;
+        let totalAccumulated = (sardAccumulatedSeconds || 0) + runSeconds;
+        
+        DB_PAUSED_SESSIONS = DB_PAUSED_SESSIONS.filter(ps => ps.studentId.toString() !== activeStudent.id.toString());
+        
+        DB_PAUSED_SESSIONS.push({
+            studentId: activeStudent.id.toString(),
+            sardSequence: sardSequence,
+            sardCurrentIndex: sardCurrentIndex,
+            accumulatedTimeSeconds: totalAccumulated,
+            sardSessionScores: sardSessionScores,
+            sardSessionId: sardSessionId,
+            sardType: document.getElementById('evalSardTypeSelect').value,
+            date: new Date().toLocaleDateString('ar-EG'),
+            savedScore: currentScore
+        });
+        
+        localStorage.setItem('DB_PAUSED_SESSIONS', JSON.stringify(DB_PAUSED_SESSIONS));
+        
+        // إزالة حالة الاختبار الجاري لمنع حجز الطالب عبر الأجهزة الأخرى
+        DB_ACTIVE_EXAMS = DB_ACTIVE_EXAMS.filter(ae => ae.studentId.toString() !== activeStudent.id.toString());
+        localStorage.setItem('DB_ACTIVE_EXAMS', JSON.stringify(DB_ACTIVE_EXAMS));
+        
+        isSardActive = false;
+        isTimerRunning = false;
+        setRecitationViewMode(false);
+        
+        document.getElementById('padBtnVocab').style.display = "none";
+        document.getElementById('padBtnNote').style.display = "none";
+        document.getElementById('padBtnSave').style.display = "none";
+        document.getElementById('padBtnEndEarly').style.display = "none";
+        document.getElementById('padBtnPause').style.display = "none";
+        document.getElementById('fixedEvalPad').style.display = "none";
+        
+        document.getElementById('quranMeta').innerText = "تم تعليق السرد بنجاح";
+        document.getElementById('quranContent').innerHTML = `<div style='text-align:center; font-weight:bold; color:#e67e22; padding:20px; line-height:1.8;'>⏸️ تم تعليق السرد وجلسة التسميع للطالب بنجاح.<br>تم حفظ جميع السور المسردة ودرجاتها والوقت التراكمي. يمكنك العودة واستئنافه في أي وقت لاحق حتى بعد شهر.</div>`;
+        
+        await autoSaveAndSync();
+        renderSardDashboard();
+        checkPausedSessionUI();
+    }
+
+    // تعبئة صندوق جلسات السرد السابقة للطالب النشط للتمكن من إلحاق السرد الجديد بسرد قديم [3]
+    function populateAppendSessionsDropdown() {
+        const container = document.getElementById('appendSessionContainer');
+        const select = document.getElementById('appendSessionSelect');
+        if (!container || !select) return;
+        
+        if (!activeStudent) {
+            container.style.display = "none";
+            return;
+        }
+        
+        // جلب جميع تقييمات الطالب
+        const studentEvals = DB_EVALS.filter(e => e.name === activeStudent.name && !e.didNotFinish);
+        
+        // تجميع فريد بناءً على معرف الجلسة
+        let sessionsMap = {};
+        studentEvals.forEach(e => {
+            let sId = e.sardSessionId;
+            if (sId) {
+                if (!sessionsMap[sId]) {
+                    sessionsMap[sId] = {
+                        date: e.date,
+                        type: e.sardType,
+                        surahs: []
+                    };
+                }
+                if (!sessionsMap[sId].surahs.includes(e.testedSurahs)) {
+                    sessionsMap[sId].surahs.push(e.testedSurahs);
+                }
+            }
+        });
+        
+        const sessionsList = Object.entries(sessionsMap);
+        if (sessionsList.length > 0) {
+            let html = '<option value="">-- لا، ابدأ جلسة سرد مستقلة جديدة --</option>';
+            sessionsList.forEach(([sId, sData]) => {
+                html += `<option value="${sId}">جلسة يوم ${sData.date} (${sData.type} - السور: ${sData.surahs.join('، ')})</option>`;
+            });
+            select.innerHTML = html;
+            container.style.display = "flex";
+        } else {
+            container.style.display = "none";
+        }
+    }
+
+    function onStudentSelectChange(skipBroadcast = false) {
+        const drop = document.getElementById('studentDropdown');
+        if (!drop || drop.selectedIndex === -1) return;
+        const idx = drop.value; activeStudent = currentFiltered[idx];
+        if (!activeStudent) return;
+        if(!skipBroadcast) broadcastSyncEvent('CHANGE_STUDENT', { index: idx });
+        
+        checkPausedSessionUI();
+        populateAppendSessionsDropdown(); // جلب جلسات السرد التراكمية السابقة لإمكانية الإلحاق [3]
+        
+        // جلب السورة التي عليها الدور تلقائياً فور اختيار الطالب
+        autoSelectNextSurahForActiveStudent();
+        
+        resetExamSystem();
+        renderStudentScrollStrip(); 
+    }
+
+    function prepareExamUI() {
+        if (isSardActive && retestThresholdType === 'cumulative' && sardCurrentIndex > 0) {
+            // لا يتم تصفير الدرجة للمتابعة التراكمية
+        } else {
+            currentScore = 50.00;
+        }
+        document.getElementById('displayScore').innerText = currentScore.toFixed(2);
+        document.getElementById('retestAlert').style.display = "none";
+        document.getElementById('evalNote').value = "";
+        
+        // إظهار لوحة التقييم السفلية
+        document.getElementById('fixedEvalPad').style.display = "flex";
+        
+        // إخفاء الأزرار التفاعلية أسفل السورة حتى يتم البدء بالامتحان الفعلي
+        document.getElementById('padBtnVocab').style.display = "none";
+        document.getElementById('padBtnNote').style.display = "none";
+        document.getElementById('padBtnSave').style.display = "none";
+        document.getElementById('padBtnEndEarly').style.display = "none";
+        document.getElementById('padBtnPause').style.display = "none";
+        
+        renderEvalPad();
+    }
+
+    function resetExamSystem() {
+        prepareExamUI();
+        setRecitationViewMode(false);
+        document.getElementById('evalArea').style.display = "block";
+        document.getElementById('quranContent').innerText = "اختر السورة ونظام السرد ثم اضغط بدء التقييم...";
+        const btn = document.getElementById('nextBtn'); btn.style.display = "none"; btn.onclick = () => handleExamNext(false); 
+        isSardActive = false;
+        document.getElementById('btnActualStart').style.display = "none";
+    }
+
+    function checkRetestThreshold() {
+        if (retestThresholdScore > 0 && currentScore <= retestThresholdScore) {
+            document.getElementById('retestAlert').style.display = 'flex';
+            let noteElem = document.getElementById('evalNote');
+            if (!noteElem.value.includes('(يعاد)')) noteElem.value = '(يعاد) ' + noteElem.value;
+        } else {
+            document.getElementById('retestAlert').style.display = 'none';
+            let noteElem = document.getElementById('evalNote');
+            if (noteElem.value.includes('(يعاد) ')) {
+                noteElem.value = noteElem.value.replace('(يعاد) ', '');
+            } else if (noteElem.value.includes('(يعاد)')) {
+                noteElem.value = noteElem.value.replace('(يعاد)', '');
+            }
+        }
+    }
+
+    // بناء لوحة الخصومات مع التحكم بالألوان وحذف العرض العددي للخصومات
+    function renderEvalPad() {
+        const fill = (id, cat) => {
+            const cont = document.getElementById(id); cont.innerHTML = "";
+            DB_ITEMS.filter(i => i.cat === cat).forEach(it => {
+                const b = document.createElement('button');
+                b.className = `pad-btn`;
+                
+                // تطبيق اللون المخصص من قاعدة البيانات السحابية أو المحلية
+                b.style.backgroundColor = it.color || (cat === 'hifz' ? 'var(--hifz-btn)' : (it.isBonus ? 'var(--bonus-btn)' : 'var(--tajweed-btn)'));
+                b.style.border = "none";
+                
+                // الاكتفاء بنوع الخطأ فقط وتصغير الأزرار
+                b.innerHTML = `<span>${it.name}</span>`;
+                b.onclick = () => { applyDeduction(it.deduct); };
+                cont.appendChild(b);
+            });
+        };
+        fill('hifzButtons', 'hifz'); fill('tajweedButtons', 'tajweed');
+    }
+
+    function applyDeduction(val) {
+        if (!isTimerRunning) return; 
+        currentScore -= val;
+        if (currentScore > 50) currentScore = 50;
+        if (currentScore < 0) currentScore = 0;
+        document.getElementById('displayScore').innerText = currentScore.toFixed(2);
+        checkRetestThreshold();
+        
+        if (retestThresholdScore > 0 && currentScore <= retestThresholdScore) {
+            handleAutomaticSardFailure();
+        }
+    }
+
+    // خارطة تحديد السور المكونة للأجزاء الثلاثين
+    function getSurahIdsForJuz(juzNum) {
+        const map = {
+            1: [1, 2], 2: [2], 3: [2, 3], 4: [3, 4], 5: [4], 6: [4, 5], 7: [5, 6], 8: [6, 7], 9: [7, 8], 10: [8, 9],
+            11: [9, 10, 11], 12: [11, 12], 13: [12, 13, 14], 14: [15, 16], 15: [17, 18], 16: [18, 19, 20], 17: [21, 22],
+            18: [23, 24, 25], 19: [25, 26, 27], 20: [27, 28, 29], 21: [29, 30, 31, 32, 33], 22: [33, 34, 35, 36],
+            23: [36, 37, 38, 39], 24: [39, 40, 41], 25: [41, 42, 43, 44, 45], 26: [46, 47, 48, 49, 50, 51],
+            27: [51, 52, 53, 54, 55, 56, 57], 28: [58, 59, 60, 61, 62, 63, 64, 65, 66],
+            29: [67, 68, 69, 70, 71, 72, 73, 74, 75, 76, 77],
+            30: [78, 79, 80, 81, 82, 83, 84, 85, 86, 87, 88, 89, 90, 91, 92, 93, 94, 95, 96, 97, 98, 99, 100, 101, 102, 103, 104, 105, 106, 107, 108, 109, 110, 111, 112, 113, 114]
+        };
+        return map[juzNum] || [];
+    }
+
+    // بدء التحضير للسرد والتقييم لـ سورة أو نطاق أو جزء كامل
+    async function prepareSmartExam(skipBroadcast = false) {
+        if (!activeStudent) return showCustomAlert("الرجاء اختيار الطالب أولاً", "error");
+        
+        const type = document.getElementById('evalSardTypeSelect').value;
+        sardSequence = [];
+        
+        if (type === 'single') {
+            const sid = parseInt(document.getElementById('surahSelect').value);
+            sardSequence = [sid];
+            isSardActive = false;
+        } else if (type === 'range') {
+            const fromId = parseInt(document.getElementById('sardFromSurah').value);
+            const toId = parseInt(document.getElementById('sardToSurah').value);
+            let start = Math.min(fromId, toId);
+            let end = Math.max(fromId, toId);
+            for (let i = start; i <= end; i++) {
+                sardSequence.push(i);
+            }
+            isSardActive = true;
+        } else if (type === 'juz') {
+            const juzNum = parseInt(document.getElementById('sardJuzSelect').value);
+            sardSequence = getSurahIdsForJuz(juzNum);
+            isSardActive = true;
+        }
+
+        if (sardSequence.length === 0) {
+            return showCustomAlert("يرجى التأكد من تحديد السور أو الأجزاء بشكل صحيح.", "error");
+        }
+
+        sardCurrentIndex = 0;
+        sardAccumulatedSeconds = 0; // تصفير العداد المتراكم في الجلسات الجديدة كلياً
+        sardSessionScores = [];
+        sardSessionId = "sard_" + Date.now() + "_" + Math.floor(Math.random() * 1000);
+        isTimerRunning = false;
+
+        document.getElementById('btnActualStart').style.display = "block";
+        document.getElementById('btnPrepareExam').title = "🔄 إعادة التحضير";
+
+        loadActiveSardSurah(skipBroadcast);
+    }
+
+    // تشغيل العداد والميقات الفعلي للتسميع مع تطبيق مظهر ملء الشاشة
+    function startRecitationTimer() {
+        sardStartTime = Date.now();
+        isTimerRunning = true;
+        
+        // إخفاء الأزرار اللوجستية وتفعيل ملء الشاشة القرآني الفوري
+        document.getElementById('btnActualStart').style.display = "none";
+        
+        // تفعيل مظهر التسميع وملء ثلاثة أرباع الشاشة للقرآن
+        setRecitationViewMode(true);
+        
+        // إظهار أزرار التحكم مدمجة بأسفل السورة بالترتيب من اليمين لليسار
+        document.getElementById('padBtnVocab').style.display = "flex";
+        document.getElementById('padBtnNote').style.display = "flex";
+        document.getElementById('padBtnSave').style.display = "flex";
+        document.getElementById('padBtnPause').style.display = "flex";
+        if (isSardActive) {
+            document.getElementById('padBtnEndEarly').style.display = "flex";
+        }
+        
+        document.getElementById('quranMeta').innerText = "⏱️ بدأ التسميع الآن.. جارٍ حساب الوقت";
+
+        // تسجيل الامتحان كحالة جارية ورفعها للسحاب فوراً لتفعيل القفل الأزرق
+        if (activeStudent) {
+            DB_ACTIVE_EXAMS = DB_ACTIVE_EXAMS.filter(ae => ae.studentId.toString() !== activeStudent.id.toString());
+            DB_ACTIVE_EXAMS.push({
+                studentId: activeStudent.id.toString(),
+                teacherName: activeTeacherNames,
+                startedAt: Date.now()
+            });
+            localStorage.setItem('DB_ACTIVE_EXAMS', JSON.stringify(DB_ACTIVE_EXAMS));
+            autoSaveAndSync();
+        }
+
+        renderSardDashboard();
+    }
+
+    // زر معاني المفردات التفاعلي المباشر أسفل السورة لتغيير النمط وعرض الكلمات فوراً
+    async function triggerVocabPrompt() {
+        if (!isTimerRunning) {
+            return showCustomAlert("يرجى تشغيل التوقيت وبدء التسميع أولاً.", "error");
+        }
+        examMode = "vocab";
+        await loadSmartVocabQuiz();
+        showCustomAlert("تم عرض معاني المفردات للطالب بنجاح! 🧩", "success");
+    }
+
+    // نافذة إدخال الملاحظات التفاعلية المرتبطة بالزر البرتقالي بأسفل السورة
+    async function triggerNotePrompt() {
+        const currentNote = document.getElementById('evalNote').value || "";
+        let note = await showCustomPrompt("أدخل ملاحظات المعلم على الطالب للتسميع الحالي:", "اكتب الملاحظات هنا...", false);
+        if (note !== null) {
+            document.getElementById('evalNote').value = note;
+            showCustomAlert("تم حفظ وتحديث ملاحظة الطالب بنجاح! 📝", "success");
+        }
+    }
+
+    // تهيئة وتجهيز السورة النشطة حالياً ضمن جلسة السرد مع تجهيز السورة التالية بالخلفية
+    async function loadActiveSardSurah(skipBroadcast = false) {
+        const curSurahId = sardSequence[sardCurrentIndex];
+        const surah = quranSurahs.find(s => s.id == curSurahId);
+
+        prepareExamUI();
+        document.getElementById('evalArea').style.display = "block";
+        document.getElementById('quranContent').innerText = "جاري تهيئة وتحضير المقطع بالخلفية...";
+
+        isTimerRunning = false;
+        setRecitationViewMode(false); // إرجاع الواجهة للوضع العادي حتى يبدأ التسميع يدوياً
+
+        if (isSardActive && retestThresholdType === 'cumulative' && sardCurrentIndex > 0) {
+            // لا يتم تصفير الدرجة للمتابعة التراكمية
+        } else {
+            currentScore = 50.00;
+        }
+        document.getElementById('displayScore').innerText = currentScore.toFixed(2);
+        checkRetestThreshold();
+
+        document.getElementById('btnActualStart').style.display = "block";
+        document.getElementById('quranMeta').innerText = "تم الانتقال للسورة التالية. يرجى الضغط على 'بدء التسميع' لتفعيل الرصد وحساب الوقت.";
+
+        // تجهيز السورة التالية في الخلفية (Cache)
+        const nextSurahId = sardSequence[sardCurrentIndex + 1] || null;
+        preloadNextSurah(nextSurahId);
+
+        // تعديل نص زر الحفظ التلقائي أسفل السورة بناء على حالة السرد
+        const saveBtnSpan = document.getElementById('padBtnSaveText');
+        const padSaveBtn = document.getElementById('padBtnSave');
+        if (isSardActive) {
+            if (sardCurrentIndex + 1 < sardSequence.length) {
+                saveBtnSpan.innerText = `💾 سورة ${surah.n} ⮕`;
+                padSaveBtn.style.background = "var(--s)";
+                padSaveBtn.style.borderBottom = "3px solid #1e7e34";
+            } else {
+                saveBtnSpan.innerText = "💾 إنهاء ورصد الدرجة";
+                padSaveBtn.style.background = "var(--a)";
+                padSaveBtn.style.borderBottom = "3px solid #1f618d";
+            }
+        } else {
+            saveBtnSpan.innerText = "💾 حفظ واعتماد";
+            padSaveBtn.style.background = "var(--a)";
+            padSaveBtn.style.borderBottom = "3px solid #1f618d";
+        }
+
+        const mode = document.getElementById('examModeSelect').value;
+        currentExamSegments = [];
+
+        if (mode === 'full') {
+            currentExamSegments.push({ sid: curSurahId, sname: surah.n, start: 1, end: surah.v });
+            finalizeExamStart(skipBroadcast, mode);
+            return;
+        }
+
+        // في حال استخدام الطرق الجزئية أو اليدوية
+        if (mode === 'manual') {
+            const manualText = document.getElementById('manualSegmentsInput').value; 
+            if(!manualText.trim()) return showCustomAlert("الرجاء إدخال أرقام المقاطع", "error");
+            const ranges = manualText.split(',').map(s => s.trim());
+            for (let r of ranges) {
+                let parts = r.split('-'); if (parts.length > 1) {
+                    let start = parseInt(parts[0]); let end = parts.length > 1 ? parseInt(parts[1]) : start;
+                    if (!isNaN(start) && !isNaN(end) && start > 0 && end <= surah.v && start <= end) {
+                        currentExamSegments.push({ sid: curSurahId, sname: surah.n, start: start, end: end });
+                    }
+                }
+            }
+            if (currentExamSegments.length === 0) return showCustomAlert("الرجاء إدخال أرقام مقاطع صحيحة (مثال: 1-5).", "error");
+            finalizeExamStart(skipBroadcast, mode); 
+            return;
+        }
+
+        const nSegs = parseInt(document.getElementById('qCount').value); 
+        const vLen = parseInt(document.getElementById('vCount').value);
+        try {
+            // جلب كامل السورة في طلب واحد لضمان السرعة القصوى وعدم التأخير
+            const res = await fetch(`https://api.alquran.cloud/v1/surah/${curSurahId}/quran-uthmani`); 
+            const data = await res.json(); 
+            const verses = data.data.ayahs;
+            let totalWords = 0; verses.forEach(v => { totalWords += v.text.split(/\s+/).length; });
+            const avgWordsPerVerse = totalWords / surah.v; const targetWordCount = Math.floor(avgWordsPerVerse * vLen); const partSize = Math.floor(surah.v / nSegs);
+            let seedBase = 0; let str = activeSessionCode + activeStudent.name + curSurahId + nSegs + vLen;
+            for (let i = 0; i < str.length; i++) { seedBase = (seedBase << 5) - seedBase + str.charCodeAt(i); seedBase |= 0; }
+            for (let i = 0; i < nSegs; i++) {
+                const partStart = (i * partSize) + 1; const partEnd = (i === nSegs - 1) ? surah.v : (i + 1) * partSize; const safeRange = Math.max(0, partEnd - partStart);
+                let randVal = getDeterministicRandom(seedBase + i + 100); const randomStart = partStart + Math.floor(randVal * safeRange);
+                let actualEnd = randomStart; let currentWords = 0;
+                for (let j = randomStart - 1; j < verses.length; j++) { currentWords += verses[j].text.split(/\s+/).length; actualEnd = verses[j].numberInSurah; if (currentWords >= targetWordCount) break; }
+                currentExamSegments.push({ sid: curSurahId, sname: surah.n, start: randomStart, end: actualEnd });
+            }
+            finalizeExamStart(skipBroadcast, mode);
+        } catch (e) {
+            const partSize = Math.floor(surah.v / nSegs); let seedBase = 0; let str = activeSessionCode + activeStudent.name + curSurahId + nSegs + vLen;
+            for (let i = 0; i < str.length; i++) { seedBase = (seedBase << 5) - seedBase + str.charCodeAt(i); seedBase |= 0; }
+            for (let i = 0; i < nSegs; i++) {
+                const partStart = (i * partSize) + 1; const partEnd = (i === nSegs - 1) ? surah.v : (i + 1) * partSize; const safeRange = Math.max(0, (partEnd - partStart) - vLen);
+                let randVal = getDeterministicRandom(seedBase + i + 100); const randomStart = partStart + Math.floor(randVal * safeRange);
+                const actualEnd = Math.min(randomStart + vLen - 1, surah.v); currentExamSegments.push({ id: actualEnd, sid: curSurahId, sname: surah.n, start: randomStart, end: actualEnd });
+            }
+            finalizeExamStart(skipBroadcast, mode);
+        }
+    }
+
+    // تهيئة وتحميل السورة التالية بالخلفية مسبقاً لمنع بطء التصفح
+    async function preloadNextSurah(nextSurahId) {
+        if (!nextSurahId) {
+            nextSurahCache = null;
+            return;
+        }
+
+        const nextSurah = quranSurahs.find(s => s.id == nextSurahId);
+
+        try {
+            const res = await fetch(`https://api.alquran.cloud/v1/ayah/${nextSurahId}:1/quran-uthmani`);
+            const data = await res.json();
+            nextSurahCache = {
+                surahId: nextSurahId,
+                text: data.data.text,
+                sname: nextSurah.n
+            };
+        } catch(e) {
+            nextSurahCache = null;
+        }
+    }
+
+    function finalizeExamStart(skipBroadcast, mode) {
+        segIdx = 0; examMode = "hifz"; currentVersesHistory = []; 
+        prepareExamUI();
+        
+        let targetVocab = mode==='manual' ? document.getElementById('manualVocabCount').value : document.getElementById('vocabCount').value;
+        let targetTafsir = mode==='manual' ? document.getElementById('manualTafsirCount').value : document.getElementById('tafsirCount').value;
+        if(!skipBroadcast) broadcastSyncEvent('START_EXAM', { segments: currentExamSegments, vCount: targetVocab, tCount: targetTafsir });
+        showNextSeg(skipBroadcast);
+    }
+
+    // تم تسريع بروز السورة تماماً وجلب كامل الآيات في طلب مدمج واحد لمنع التأخير والتقطيع
+    async function showNextSeg(skipBroadcast = false) {
+        const seg = currentExamSegments[segIdx]; 
+        document.getElementById('quranContent').innerText = "جاري تحميل المقطع فوراً..."; 
+        document.getElementById('nextBtn').style.display = "none";
+        
+        try {
+            let t = "";
+            // جلب كامل السورة في طلب سحابي واحد فائق السرعة
+            const res = await fetch(`https://api.alquran.cloud/v1/surah/${seg.sid}/quran-uthmani`); 
+            const data = await res.json();
+            const ayahs = data.data.ayahs;
+            
+            for(let i = seg.start; i <= seg.end; i++) {
+                const ayahObj = ayahs.find(a => a.numberInSurah === i);
+                if (ayahObj) {
+                    t += ayahObj.text + ` ﴿${i}﴾ `; 
+                    currentVersesHistory.push({ key: `${seg.sid}:${i}`, text: ayahObj.text, sname: seg.sname, num: i });
+                }
+            }
+            
+            document.getElementById('quranContent').innerText = t; 
+            document.getElementById('quranMeta').innerText = `سورة ${seg.sname} (المقطع ${segIdx+1} من ${currentExamSegments.length})`;
+            
+            const btn = document.getElementById('nextBtn'); 
+            segIdx++;
+            
+            if (segIdx < currentExamSegments.length) { 
+                btn.innerText = "المقطع التالي ⮕"; 
+                btn.style.background = "var(--s)"; 
+                btn.style.display = "block"; 
+            } else { 
+                // الغي المستطيل البرتقالي التلقائي لمعاني المفردات من صندوق القرآن لأننا استبدلناه بالزر الأزرق الجديد الدائم بالأسفل
+                btn.style.display = "none"; 
+            }
+        } catch(e) { 
+            console.error(e);
+            showCustomAlert("حدث خطأ أثناء تحميل السورة سحابياً، يرجى التحقق من الاتصال بالشبكة.", "error"); 
+        }
+    }
+
+    function handleExamNext(skipBroadcast = false) {
+        if(!skipBroadcast) broadcastSyncEvent('NEXT_SEGMENT', {});
+        if (examMode === "hifz") { if (segIdx < currentExamSegments.length) showNextSeg(skipBroadcast); else { examMode = "vocab"; loadSmartVocabQuiz(); } } 
+        else if (examMode === "vocab") { examMode = "tafsir"; loadTafsirAlJalalaynQuiz(); }
+    }
+
+    async function loadSmartVocabQuiz() {
+        document.getElementById('quranContent').innerHTML = "<div style='text-align:center;'>جاري استخراج الكلمات...</div>"; document.getElementById('quranMeta').innerText = "معاني المفردات";
+        const btn = document.getElementById('nextBtn'); btn.style.display = "none";
+        const mode = document.getElementById('examModeSelect').value; const vTarget = parseInt(mode==='manual' ? document.getElementById('manualVocabCount').value : document.getElementById('vocabCount').value) || 4;
+        let html = '<div class="vocab-list">'; let samples = [...currentVersesHistory].sort(() => 0.5 - Math.random()); let wordsFound = 0;
+        for (let verseObj of samples) {
+            if(wordsFound >= vTarget) break;
+            try {
+                const sid = verseObj.key.split(':')[0]; const res = await fetch(`https://quranenc.com/api/v1/translation/aya/arabic_seraj/${sid}/${verseObj.num}`); const data = await res.json();
+                if (data && data.result && data.result.translation) {
+                    let lines = data.result.translation.split(/\r?\n/);
+                    for (let line of lines) {
+                        if(wordsFound >= vTarget) break; let parts = line.split(/:(.+)/);
+                        if (parts.length > 1) {
+                            html += `<div class="vocab-item" style="border-right-color: #e67e22; background: #fff; padding: 15px; text-align: center;"><div class="vocab-meta" style="color: #7f8c8d;">سورة ${verseObj.sname} - آية ${verseObj.num}</div><div style="font-size: 1.6em; line-height: 1.6;"><span style="color: #d35400; font-weight: bold; font-family: 'Amiri Quran', serif;">${parts[0].trim()}</span><span style="color: #95a5a6; margin: 0 8px;">:</span><span style="color: #2980b9; font-weight: bold;">${parts[1].trim()}</span></div></div>`;
+                            wordsFound++;
+                        }
+                    }
+                }
+            } catch(e) {}
+        }
+        if(wordsFound === 0) html += "<div style='text-align:center; padding: 20px; font-weight: bold;'>لم يتم العثور على مفردات في هذه السورة.</div>";
+        html += '</div>'; document.getElementById('quranContent').innerHTML = html;
+        btn.innerText = "اختبار تفسير الآيات (الجلالين) 📖 ⮕"; btn.style.background = "var(--a)"; btn.style.display = "block";
+    }
+
+    async function loadTafsirAlJalalaynQuiz() {
+        document.getElementById('quranContent').innerHTML = "<div style='text-align:center;'>جاري تحضير التفسير...</div>"; document.getElementById('quranMeta').innerText = "تفسير الآيات";
+        const btn = document.getElementById('nextBtn'); btn.style.display = "none";
+        const mode = document.getElementById('examModeSelect').value; const tTarget = parseInt(mode==='manual' ? document.getElementById('manualTafsirCount').value : document.getElementById('tafsirCount').value) || 2;
+        let html = '<div class="vocab-list">'; let samples = [...currentVersesHistory].sort(() => 0.5 - Math.random()).slice(0, Math.min(tTarget, currentVersesHistory.length));
+        if(samples.length === 0) html += "<div style='text-align:center;'>لا توجد تفسيرات كافية.</div>";
+        else {
+            for (let verseObj of samples) {
+                try {
+                    const res = await fetch(`https://api.alquran.cloud/v1/ayah/${verseObj.key}/ar.jalalayn`); const data = await res.json();
+                    html += `<div class="vocab-item" style="border-right-color: #27ae60; text-align: right;"><div class="vocab-meta" style="color: #27ae60;">سورة ${verseObj.sname} - آية ${verseObj.num}</div><div class="vocab-word" style="font-size: 1.4em; color: #2980b9;">﴿ ${verseObj.text} ﴾</div><div class="vocab-meaning" style="background: #fdfdfd;">${data.data.text}</div></div>`;
+                } catch(e) {}
+            }
+        }
+        html += '</div>'; document.getElementById('quranContent').innerHTML = html;
+        btn.innerText = "إنهاء التقييم والملاحظات ✔️"; btn.style.background = "var(--s)"; btn.style.display = "block";
+        btn.onclick = function() { document.getElementById('quranMeta').innerText = "انتهى الاختبار"; document.getElementById('quranContent').innerHTML = "<div style='text-align:center; font-weight:bold; color:var(--p); padding:20px; font-size: 1.2em;'>🎉 انتهى السرد ورصد الإجابات بنجاح. يرجى حفظ السورة الحالية أو اعتبار الجلسة كاملة بالأسفل.</div>"; this.style.display = "none"; };
+    }
+
+    // دالة إنهاء السرد مبكراً وحفظ الطالب كغير مجتاز
+    async function endSardEarly() {
+        let confirmVal = await showCustomConfirm("تأكيد عدم إكمال السرد", `هل ترغب حقاً في إنهاء السرد مبكراً؟ سيتم رصد حالة الطالب كـ "لم ينه السرد"، ولن تُسجل درجته في السجل العام، وسيتحول لون مربعه باللوحة للأحمر.`);
+        if (confirmVal) {
+            const now = new Date(); 
+            const dateStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+            
+            const studentObj = DB_STUDENTS.find(s => s && s.name && s.name.trim() === activeStudent.name.trim());
+            const studentRealGroup = studentObj ? studentObj.groupName : "عامة";
+
+            const failedRecord = {
+                id: Date.now().toString() + "_" + Math.floor(Math.random()*1000).toString(),
+                name: activeStudent.name,
+                grade: studentRealGroup,
+                score: 0, 
+                teacher: activeTeacherNames || "المعلم",
+                sessionCode: activeSessionCode || "مستقل",
+                note: "لم ينه السرد (إنهاء مبكر من المعلم)",
+                date: dateStr,
+                testedSurahs: "سرد غير مكتمل",
+                sardSessionId: sardSessionId,
+                sardType: "سرد غير مكتمل 🔴",
+                didNotFinish: true 
+            };
+
+            DB_EVALS.push(failedRecord);
+            broadcastSyncEvent('SAVE_RESULT', failedRecord);
+
+            // إلغاء قفل الطالب سحابياً فور انتهاء الجلسة
+            if (activeStudent) {
+                DB_ACTIVE_EXAMS = DB_ACTIVE_EXAMS.filter(ae => ae.studentId.toString() !== activeStudent.id.toString());
+                localStorage.setItem('DB_ACTIVE_EXAMS', JSON.stringify(DB_ACTIVE_EXAMS));
+            }
+
+            try {
+                localStorage.setItem('DB_EVALS', JSON.stringify(DB_EVALS));
+                
+                document.getElementById('evalNote').value = ""; 
+                document.getElementById('padBtnVocab').style.display = "none";
+                document.getElementById('padBtnNote').style.display = "none";
+                document.getElementById('padBtnSave').style.display = "none"; 
+                document.getElementById('padBtnEndEarly').style.display = "none";
+                document.getElementById('padBtnPause').style.display = "none";
+                document.getElementById('fixedEvalPad').style.display = "none";
+                document.getElementById('retestAlert').style.display = "none"; 
+                document.getElementById('btnActualStart').style.display = "none";
+                document.getElementById('btnPrepareExam').innerText = "🔄";
+
+                document.getElementById('quranMeta').innerText = "لم يتم إكمال السرد";
+                document.getElementById('quranContent').innerHTML = `<div style='text-align:center; font-weight:bold; color:var(--d); padding:20px; line-height:1.8;'>🛑 تم إنهاء السرد قبل نهايته. الطالب يعتبر "لم ينه السرد" ولن تُحسب له درجة في النتائج، وتحول لون مربعه باللوحة للون الأحمر.</div>`;
+                
+                isSardActive = false;
+                isTimerRunning = false;
+                setRecitationViewMode(false); // إلغاء مظهر ملء الشاشة القرآني
+                await autoSaveAndSync();
+                renderSardDashboard();
+            } catch(e) {
+                showCustomAlert("حدث خطأ أثناء رصد حالة عدم إكمال السرد.", "error");
+            }
+        }
+    }
+
+    // دالة الإيقاف التلقائي للامتحان عند تجاوز حد الرسوب المعتمد
+    async function handleAutomaticSardFailure() {
+        isTimerRunning = false; // إيقاف فوري للعداد
+        setRecitationViewMode(false); // إلغاء مظهر ملء الشاشة القرآني
+        
+        const now = new Date(); 
+        const dateStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+        
+        const studentObj = DB_STUDENTS.find(s => s && s.name && s.name.trim() === activeStudent.name.trim());
+        const studentRealGroup = studentObj ? studentObj.groupName : "عامة";
+
+        const failedRecord = {
+            id: Date.now().toString() + "_" + Math.floor(Math.random()*1000).toString(),
+            name: activeStudent.name,
+            grade: studentRealGroup,
+            score: currentScore, 
+            teacher: activeTeacherNames || "المعلم",
+            sessionCode: activeSessionCode || "مستقل",
+            note: `لم ينه السرد (تجاوز حد الأخطاء المسموح - الدرجة ${currentScore.toFixed(2)})`,
+            date: dateStr,
+            testedSurahs: "سرد غير مكتمل",
+            sardSessionId: sardSessionId,
+            sardType: "سرد غير مكتمل 🔴",
+            didNotFinish: true 
+        };
+
+        DB_EVALS.push(failedRecord);
+        broadcastSyncEvent('SAVE_RESULT', failedRecord);
+
+        // إلغاء قفل الطالب سحابياً فور فشل السرد
+        if (activeStudent) {
+            DB_ACTIVE_EXAMS = DB_ACTIVE_EXAMS.filter(ae => ae.studentId.toString() !== activeStudent.id.toString());
+            localStorage.setItem('DB_ACTIVE_EXAMS', JSON.stringify(DB_ACTIVE_EXAMS));
+        }
+
+        try {
+            localStorage.setItem('DB_EVALS', JSON.stringify(DB_EVALS));
+            
+            document.getElementById('evalNote').value = ""; 
+            document.getElementById('padBtnVocab').style.display = "none";
+            document.getElementById('padBtnNote').style.display = "none";
+            document.getElementById('padBtnSave').style.display = "none"; 
+            document.getElementById('padBtnEndEarly').style.display = "none";
+            document.getElementById('padBtnPause').style.display = "none";
+            document.getElementById('fixedEvalPad').style.display = "none";
+            document.getElementById('retestAlert').style.display = "flex"; 
+            document.getElementById('btnActualStart').style.display = "none";
+            document.getElementById('btnPrepareExam').innerText = "🔄";
+
+            document.getElementById('quranMeta').innerText = "لم يتمكن من السرد";
+            document.getElementById('quranContent').innerHTML = `<div style='text-align:center; font-weight:bold; color:var(--d); padding:20px; line-height:1.8;'>🛑 توقف التسميع! تجاوز الطالب الأخطاء المسموحة ونقصت درجته عن حد القبول المعتمد (${retestThresholdScore}). يعتبر الطالب "لم ينه السرد" ولم تُسجل درجته في السجل، وتحول لونه باللوحة للأحمر.</div>`;
+            
+            isSardActive = false;
+            await autoSaveAndSync();
+            renderSardDashboard();
+        } catch(e) {
+            console.error(e);
+        }
+    }
+
+    // حفظ درجة السورة الحالية متتابعة بضغطة واحدة، أو إنهاء الجلسة واحتساب زمن السرد الكلي ونقاط السرعة مع إمكانية دمج جلسات السرد السابقة [3]
+    async function saveFinalResult() {
+        if (!activeStudent) return showCustomAlert("الرجاء اختيار الطالب أولاً", "error");
+        
+        if (!isTimerRunning) return showCustomAlert("لم يتم بدء التسميع الفعلي بتشغيل الوقت! يرجى ضغط زر 'بدء التسميع' أولاً.", "error");
+
+        const note = document.getElementById('evalNote').value;
+        const now = new Date(); 
+        const dateStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`; 
+        
+        const curSurahId = sardSequence[sardCurrentIndex];
+        const surahObj = quranSurahs.find(s => s.id == curSurahId);
+
+        let activeSardTypeName = "سورة منفردة";
+        const typeSelectVal = document.getElementById('evalSardTypeSelect').value;
+        if (typeSelectVal === "juz") {
+            activeSardTypeName = `سرد الجزء ${document.getElementById('sardJuzSelect').value}`;
+        } else if (typeSelectVal === "range") {
+            activeSardTypeName = "سرد نطاق مخصص";
+        }
+
+        // إنشاء كائن رصد السورة الحالية
+        const singleResult = {
+            id: Date.now().toString() + Math.floor(Math.random()*1000).toString() + "_" + sardCurrentIndex,
+            name: activeStudent.name,
+            grade: activeGroupName || "عامة",
+            score: currentScore,
+            teacher: activeTeacherNames || "المعلم",
+            sessionCode: activeSessionCode || "مستقل",
+            note: note,
+            date: dateStr,
+            testedSurahs: surahObj.n,
+            sardSessionId: sardSessionId,
+            sardType: activeSardTypeName,
+            sardTotalSurahs: sardSequence.length
+        };
+
+        sardSessionScores.push(singleResult);
+
+        // إذا كان هناك سور متبقية في السرد المتتابع (بضغطة زر واحدة)
+        if (isSardActive && (sardCurrentIndex + 1 < sardSequence.length)) {
+            sardCurrentIndex++;
+            showCustomAlert(`تم حفظ درجة سورة ${surahObj.n} بنجاح! جاري تحويلك تلقائياً للسورة التالية...`, "success");
+            loadActiveSardSurah(false);
+        } else {
+            // --- بدء خوارزمية الدمج التلقائي الذكية التراكمية ثنائية الاتجاه الممتدة عبر التواريخ وسجل السرد القديم ---
+            let runSeconds = isTimerRunning ? Math.floor((Date.now() - sardStartTime) / 1000) : 0;
+            const currentSardSeconds = Math.max(1, (sardAccumulatedSeconds || 0) + runSeconds);
+
+            // التحقق مما إذا كان المعلم قد اختار إلحاق هذا السرد بجلسة سرد سابقة مخزنة للطالب
+            let appendSessionId = document.getElementById('appendSessionSelect') ? document.getElementById('appendSessionSelect').value : "";
+            let existingToMerge = [];
+            let existingDurationSeconds = 0;
+
+            if (appendSessionId) {
+                // دمج السرد الجديد مع جلسة سرد قديمة محددة (سرد ممتد لعدة أيام أو أسابيع) [3]
+                existingToMerge = DB_EVALS.filter(e => e.sardSessionId === appendSessionId && !e.didNotFinish);
+                DB_EVALS = DB_EVALS.filter(e => !(e.sardSessionId === appendSessionId && !e.didNotFinish));
+                
+                // استخراج الوقت التراكمي المستحق من الجلسة القديمة المخزنة
+                existingToMerge.forEach(e => {
+                    if (e.sardDurationSeconds > existingDurationSeconds) {
+                        existingDurationSeconds = e.sardDurationSeconds;
+                    }
+                });
+            } else {
+                // الدمج التلقائي الافتراضي لليوم نفسه لمنع ضياع السرد عند انقطاع النظام
+                existingToMerge = DB_EVALS.filter(e => e.name === activeStudent.name && e.date === dateStr && !e.didNotFinish);
+                DB_EVALS = DB_EVALS.filter(e => !(e.name === activeStudent.name && e.date === dateStr && !e.didNotFinish));
+            }
+
+            // إنشاء قائمة تجميعية موحدة لدرجات السور لليوم بالكامل
+            let combinedScoresList = [];
+            
+            // 1. إضافة السور التي كانت مرصودة مسبقاً اليوم أو في الجلسة المحددة الملحق بها السرد
+            existingToMerge.forEach(e => {
+                combinedScoresList.push({
+                    name: e.name,
+                    grade: e.grade,
+                    score: parseFloat(e.score),
+                    teacher: e.teacher,
+                    sessionCode: e.sessionCode,
+                    note: e.note,
+                    date: e.date, // الحفاظ على تاريخ التسميع الأصلي لكل سورة بدقة
+                    testedSurahs: e.testedSurahs,
+                    sardDurationSeconds: e.sardDurationSeconds || 0
+                });
+            });
+
+            // 2. إضافة السور التي تم سردها في الجلسة الحالية
+            sardSessionScores.forEach(s => {
+                // منع الازدواجية في حال قام المعلم بإعادة تسميع نفس السورة مرتين
+                combinedScoresList = combinedScoresList.filter(item => item.testedSurahs !== s.testedSurahs);
+                combinedScoresList.push({
+                    name: s.name,
+                    grade: s.grade,
+                    score: parseFloat(s.score),
+                    teacher: s.teacher,
+                    sessionCode: s.sessionCode,
+                    note: s.note,
+                    date: s.date,
+                    testedSurahs: s.testedSurahs,
+                    sardDurationSeconds: currentSardSeconds / sardSessionScores.length // توزيع الوقت المستغرق بالتساوي على السور الجارية
+                });
+            });
+
+            // احتساب الإحصائيات التجميعية الجديدة للجلسة المدمجة
+            let totalDurationSeconds = existingDurationSeconds + currentSardSeconds;
+            let scoresSum = 0;
+            combinedScoresList.forEach(item => {
+                scoresSum += item.score;
+            });
+
+            const avgScore = scoresSum / combinedScoresList.length;
+
+            // إعادة احتساب نقاط السرعة الإجمالية الموحدة بناءً على الوقت التراكمي المدمج (من 50 درجة كحد أقصى)
+            const durationInMinutes = totalDurationSeconds / 60;
+            let speedPoints = 0;
+            if (combinedScoresList.length > 1) { // دمج السرد يحوله تلقائياً لنظام سرد السور المتتابع
+                speedPoints = Math.max(0, 50 - (durationInMinutes * 0.25));
+            }
+
+            const finalPoints = avgScore + speedPoints;
+
+            // توحيد معرف الجلسة بناءً على الإلحاق أو الجديد
+            let targetSessionId = appendSessionId || sardSessionId;
+            let targetSardType = "";
+            if (appendSessionId) {
+                const origRecord = existingToMerge[0];
+                targetSardType = origRecord ? origRecord.sardType : "سرد تراكمي ممتد";
+                if (!targetSardType.includes("مدمج") && !targetSardType.includes("ممتد")) {
+                    targetSardType += " (مدمج تراكمي)";
+                }
+            } else {
+                targetSardType = combinedScoresList.length > 1 ? "سرد مدمج متراكم" : "سورة منفردة";
+            }
+
+            // كتابة ورصد التقييمات المدمجة كبيانات جديدة موحدة بالكامل في السجل العام
+            combinedScoresList.forEach((item, idx) => {
+                let finalRecord = {
+                    id: Date.now().toString() + Math.floor(Math.random()*1000).toString() + "_" + idx,
+                    name: item.name,
+                    grade: item.grade,
+                    score: item.score,
+                    teacher: item.teacher,
+                    sessionCode: item.sessionCode,
+                    note: item.note,
+                    date: item.date, // يحتفظ بتاريخه الأصلي ليكون موثقاً بدقة
+                    testedSurahs: item.testedSurahs,
+                    sardSessionId: targetSessionId,
+                    sardType: targetSardType,
+                    sardTotalSurahs: combinedScoresList.length,
+                    sardDurationSeconds: totalDurationSeconds,
+                    speedPoints: parseFloat(speedPoints.toFixed(2)),
+                    avgScore: parseFloat(avgScore.toFixed(2)),
+                    finalPoints: parseFloat(finalPoints.toFixed(2)),
+                    speedPointsMigratedTo50: true
+                };
+                DB_EVALS.push(finalRecord);
+                broadcastSyncEvent('SAVE_RESULT', finalRecord);
+            });
+            // --- نهاية خوارزمية الدمج التلقائي الذكية ثنائية الاتجاه ---
+
+            // حذف الجلسة المعلقة المحفوظة مؤقتاً للطالب فور اعتماد السرد بنجاح
+            DB_PAUSED_SESSIONS = DB_PAUSED_SESSIONS.filter(ps => ps.studentId.toString() !== activeStudent.id.toString());
+            localStorage.setItem('DB_PAUSED_SESSIONS', JSON.stringify(DB_PAUSED_SESSIONS));
+            checkPausedSessionUI();
+
+            // إلغاء قفل الطالب سحابياً وتصفير حالة الامتحان الجارية تماماً
+            if (activeStudent) {
+                DB_ACTIVE_EXAMS = DB_ACTIVE_EXAMS.filter(ae => ae.studentId.toString() !== activeStudent.id.toString());
+                localStorage.setItem('DB_ACTIVE_EXAMS', JSON.stringify(DB_ACTIVE_EXAMS));
+            }
+
+            try {
+                localStorage.setItem('DB_EVALS', JSON.stringify(DB_EVALS));
+                
+                document.getElementById('evalNote').value = ""; 
+                document.getElementById('padBtnVocab').style.display = "none";
+                document.getElementById('padBtnNote').style.display = "none";
+                document.getElementById('padBtnSave').style.display = "none"; 
+                document.getElementById('padBtnEndEarly').style.display = "none";
+                document.getElementById('padBtnPause').style.display = "none";
+                document.getElementById('fixedEvalPad').style.display = "none";
+                document.getElementById('retestAlert').style.display = "none"; 
+                document.getElementById('btnActualStart').style.display = "none";
+                document.getElementById('btnPrepareExam').innerText = "🔄";
+
+                // إعادة تصفير صندوق الإلحاق وتحديثه
+                if (document.getElementById('appendSessionSelect')) {
+                    document.getElementById('appendSessionSelect').value = "";
+                }
+                populateAppendSessionsDropdown();
+
+                let mins = Math.floor(totalDurationSeconds / 60);
+                let secs = Math.floor(totalDurationSeconds % 60);
+                let completeMsg = `🎉 تم حفظ ودمج كافة سور السرد بنجاح تلقائياً في جلسة واحدة موحدة!<br>
+                السور الإجمالية في هذه الجلسة المدمجة: <strong>${combinedScoresList.map(item => item.testedSurahs).join('، ')}</strong><br>
+                معدل السرد التراكمي: <strong>${avgScore.toFixed(2)}</strong> (من 50)<br>
+                الوقت التراكمي الكلي: <strong>${mins} دقيقة و ${secs} ثانية</strong><br>
+                نقاط السرعة الموحدة: <strong>${speedPoints.toFixed(2)} / 50</strong><br>
+                الدرجة النهائية المعتمدة: <strong style="color:var(--s); font-size:1.3em;">${finalPoints.toFixed(2)} / 100</strong>`;
+
+                document.getElementById('quranMeta').innerText = "تم حفظ ودمج السرد بنجاح في القائمة الموحدة";
+                document.getElementById('quranContent').innerHTML = `<div style='text-align:center; font-weight:bold; color:var(--p); padding:20px; line-height:1.8;'>${completeMsg}</div>`;
+                
+                isSardActive = false;
+                isTimerRunning = false;
+                setRecitationViewMode(false); // إلغاء مظهر ملء الشاشة القرآني
+                await autoSaveAndSync();
+                renderSardDashboard();
+            } catch(e) { 
+                showCustomAlert("حدث خطأ أثناء حفظ التحديثات المدمجة.", "error"); 
+            }
+        }
+    }
+
+    function formatNoteWithSurah(noteText, surahText) {
+        let noteHtml = '';
+        if (noteText) {
+            if (noteText.includes('(يعاد)') || noteText.includes('يعاد')) {
+                noteHtml = `<span style="color: white; background-color: var(--d); padding: 2px 8px; border-radius: 10px; font-weight: bold; font-size: 11px;">${noteText}</span>`;
+            } else {
+                noteHtml = `<span style="font-size: 11px; color: gray; font-weight: bold;">${noteText}</span>`;
+            }
+        } else {
+            noteHtml = `<span style="font-size: 11px; color: #bdc3c7;">لا توجد ملاحظات</span>`;
+        }
+        return noteHtml;
+    }
+
+    async function deleteSardSession(idsString) {
+        let confirmVal = await showCustomConfirm("تأكيد الحذف", "هل أنت متأكد من حذف جلسة السرد هذه بالكامل بما فيها من درجات؟");
+        if(confirmVal) { 
+            const idsToDelete = idsString.split(',');
+            DB_EVALS = DB_EVALS.filter(e => !idsToDelete.includes(e.id.toString())); 
+            localStorage.setItem('DB_EVALS', JSON.stringify(DB_EVALS)); 
+            updateResults(); 
+            await autoSaveAndSync();
+            showCustomAlert("تم حذف السجل بنجاح.", "success");
+        }
+    }
+    
+    async function deleteAllResults() {
+        let confirmVal = await showCustomConfirm("مسح السجل بالكامل", "تحذير: هل أنت متأكد من رغبتك في مسح كافة التقييمات نهائياً؟");
+        if(confirmVal) { 
+            DB_EVALS = []; 
+            localStorage.setItem('DB_EVALS', JSON.stringify(DB_EVALS)); 
+            updateResults(); 
+            await autoSaveAndSync();
+            showCustomAlert("تم تصفير سجل النتائج بنجاح.", "success");
+        }
+    }
+
+    // غلق عرض النتائج الموحدة والعودة لعرض النتائج الخاصة بالمعلم فقط [3]
+    function lockGlobalResults() {
+        sessionStorage.setItem('isGlobalResultsUnlocked', 'false');
+        isGlobalResultsUnlocked = false;
+        document.getElementById('resultsLockStateLocked').style.display = "block";
+        document.getElementById('resultsLockStateUnlocked').style.display = "none";
+        document.getElementById('resultsViewTitle').innerText = `النتائج المعتمدة الخاصة بالمعلم: ${activeTeacherNames || ''}`;
+        updateResults();
+        showCustomAlert("تم غلق استعراض النتائج العامة للطلاب وتفعيل عرض نتائجك فقط.", "info");
+    }
+
+    async function unlockGlobalResults() {
+        let pw = await showCustomPrompt("الرجاء إدخال الرقم السري لاستعراض الترتيب العام لجميع الحلقات والطلاب معاً:", "الرمز السري", true);
+        if (pw === "1973") {
+            sessionStorage.setItem('isGlobalResultsUnlocked', 'true');
+            isGlobalResultsUnlocked = true;
+            document.getElementById('resultsLockStateLocked').style.display = "none";
+            document.getElementById('resultsLockStateUnlocked').style.display = "block";
+            document.getElementById('resultsViewTitle').innerText = "سجل درجات الطلاب الموحد والترتيب العام";
+            updateResults();
+        } else {
+            showCustomAlert("خطأ: الرمز السري غير صحيح!", "error");
+        }
+    }
+
+    // بناء سجل التقييم والسرد المتكامل على شكل شبكة تراكمية بجدول موحد ذكي
+    function updateResults() {
+        let evaluationsToDisplay = [];
+        
+        if (isGlobalResultsUnlocked) {
+            evaluationsToDisplay = [...DB_EVALS];
+            document.getElementById('resultsViewTitle').innerText = "سجل درجات الطلاب الموحد والترتيب العام";
+        } else {
+            evaluationsToDisplay = DB_EVALS.filter(e => e.teacher === activeTeacherNames);
+            document.getElementById('resultsViewTitle').innerText = `النتائج المعتمدة الخاصة بالمعلم: ${activeTeacherNames || ''}`;
+        }
+
+        // تجميع النتائج بناء على جلسة السرد الفردية أو التراكمية
+        let sessionsMap = {};
+        evaluationsToDisplay.forEach(e => {
+            let key = e.sardSessionId || ("single_" + e.id);
+            if (!sessionsMap[key]) {
+                sessionsMap[key] = {
+                    studentName: e.name,
+                    groupName: e.grade,
+                    date: e.date,
+                    teacher: e.teacher,
+                    surahScores: {}, // حفظ السور ودرجاتها في مصفوفة داخلية
+                    sardDuration: e.sardDurationSeconds || 0,
+                    speedPoints: e.speedPoints || 0,
+                    sardType: e.sardType || "سورة منفردة",
+                    notes: [],
+                    rawScoresSum: 0,
+                    rawScoresCount: 0,
+                    ids: []
+                };
+            }
+            sessionsMap[key].surahScores[e.testedSurahs] = parseFloat(e.score);
+            sessionsMap[key].rawScoresSum += parseFloat(e.score);
+            sessionsMap[key].rawScoresCount++;
+            sessionsMap[key].ids.push(e.id);
+            if (e.note) {
+                // فلترة لمنع تكرار الملاحظات الفارغة أو التلقائية
+                sessionsMap[key].notes.push(e.note);
+            }
+        });
+
+        // تحويل الخارطة إلى قائمة وإجراء العمليات الحسابية
+        let sessionsList = Object.values(sessionsMap).map(session => {
+            const avg = session.rawScoresSum / session.rawScoresCount;
+            const speed = parseFloat(session.speedPoints) || 0;
+            const final = avg + speed;
+            return {
+                ...session,
+                calculatedAverage: avg,
+                calculatedFinal: final
+            };
+        });
+
+        // الترتيب التنازلي التلقائي لجميع الطلاب بناء على الدرجة الإجمالية والسرعة
+        sessionsList.sort((a, b) => b.calculatedFinal - a.calculatedFinal);
+
+        // رسم وتوليد الجدول
+        let html = '';
+        sessionsList.forEach((session, idx) => {
+            // رسم شبكة فرعية صغيرة لدرجات السور المسمعة داخل الخلية
+            let surahsGridHtml = '<div style="display: flex; flex-wrap: wrap; gap: 4px; justify-content: center;">';
+            Object.entries(session.surahScores).forEach(([sName, score]) => {
+                let badgeColor = score > (retestThresholdScore || 0) ? '#27ae60' : '#e74c3c';
+                surahsGridHtml += `
+                    <span style="background: ${badgeColor}; color: white; padding: 2px 6px; border-radius: 4px; font-size: 11px; font-weight: bold; white-space: nowrap;">
+                        ${sName}: ${score.toFixed(1)}
+                    </span>
+                `;
+            });
+            surahsGridHtml += '</div>';
+
+            // وقت السرد
+            let durationText = "N/A";
+            if (session.sardDuration > 0) {
+                const mins = Math.floor(session.sardDuration / 60);
+                const secs = session.sardDuration % 60;
+                durationText = `${mins}:${String(secs).padStart(2, '0')}`;
+            }
+
+            let notesText = session.notes.filter(n => n.trim() !== "").join(' | ') || '';
+            let scoreColor = session.calculatedAverage > (retestThresholdScore || 0) ? 'var(--s)' : 'var(--d)';
+
+            html += `
+                <tr>
+                    <td style="font-weight: bold; font-size:14px; background:#f9f9f9; text-align:center; color: var(--a);">${idx + 1} 🏆</td>
+                    <td style="font-weight: bold;">${session.studentName}</td>
+                    <td><span style="background:#e8f4f8; color:var(--a); padding:2px 6px; border-radius:4px; font-weight:bold; font-size:11px;">${session.groupName}</span></td>
+                    <td style="font-size:11px; color:#7f8c8d; font-weight: bold;">${session.sardType}</td>
+                    <td>${surahsGridHtml}</td>
+                    <td style="color:${scoreColor}; font-weight:bold; font-size:14px;">${session.calculatedAverage.toFixed(2)}</td>
+                    <td style="font-weight:bold; color:var(--p);">${durationText}</td>
+                    <td style="color:var(--bonus-btn); font-weight:bold;">+${session.speedPoints.toFixed(2)}</td>
+                    <td style="background:#eefaf4; color:var(--s); font-weight:bold; font-size:15px; border:1px solid #d4efdf;">${session.calculatedFinal.toFixed(2)}</td>
+                    <td style="font-size:11px; text-align:right;">
+                        👤 ${session.teacher}<br>
+                        📅 ${session.date}
+                        ${notesText ? `<br><span style="color:#7f8c8d;">📝 ${notesText}</span>` : ''}
+                    </td>
+                    <td class="no-print">
+                        <button onclick="deleteSardSession('${session.ids.join(',')}')" class="del-btn" style="padding: 3px 6px;">🗑️</button>
+                    </td>
+                </tr>
+            `;
+        });
+
+        document.getElementById('resultsBodyAveraged').innerHTML = html || "<tr><td colspan='11' style='padding:20px; text-align:center; font-weight:bold;'>لا توجد درجات أو جلسات سرد مسجلة بالنظام حالياً.</td></tr>";
+    }
+
+    // دالة إرجاع طالب محدد اليوم إلى المربع الأبيض (إلغاء سرد اليوم)
+    async function resetSingleStudentSardToday() {
+        const resetSelect = document.getElementById('resetSingleStudentSelect');
+        if (!resetSelect || !resetSelect.value) {
+            return showCustomAlert("الرجاء تحديد الطالب أولاً.", "error");
+        }
+        
+        const studentId = resetSelect.value;
+        const student = DB_STUDENTS.find(s => s.id.toString() === studentId.toString());
+        if (!student) return showCustomAlert("لم يتم العثور على الطالب.", "error");
+
+        let confirmVal = await showCustomConfirm("تأكيد إلغاء سرد اليوم", `هل ترغب فعلاً بإرجاع الطالب (${student.name}) للمربع الأبيض اليوم ومسح كافة تقييماته المسجلة والامتحانات النشطة له اليوم فقط؟`);
+        if (!confirmVal) return;
+
+        const now = new Date();
+        const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+
+        // 1. مسح من الامتحانات النشطة الجارية حالياً لمنع حجز وقفل المعلمين
+        DB_ACTIVE_EXAMS = DB_ACTIVE_EXAMS.filter(ae => ae.studentId.toString() !== studentId.toString());
+        localStorage.setItem('DB_ACTIVE_EXAMS', JSON.stringify(DB_ACTIVE_EXAMS));
+
+        // 2. مسح تقييمات وجلسات سرد هذا الطالب المسجلة اليوم
+        DB_EVALS = DB_EVALS.filter(e => !(e.name === student.name && e.date === todayStr));
+        localStorage.setItem('DB_EVALS', JSON.stringify(DB_EVALS));
+
+        await autoSaveAndSync();
+        renderSardDashboard();
+        updateResults();
+        showCustomAlert(`تم إلغاء سرد اليوم للطالب (${student.name}) وإعادته للمربع الأبيض بنجاح.`, "success");
+    }
+
+    // دالة إرجاع كافة الطلاب اليوم إلى المربع الأبيض (إلغاء سرد اليوم للجميع)
+    async function resetAllStudentsSardToday() {
+        let confirmVal = await showCustomConfirm("تأكيد إلغاء السرد الجماعي اليوم", "تحذير هام: هل ترغب حقاً بإلغاء سرد اليوم لكافة طلاب الحلقة ومسح جميع تقييماتهم وامتحاناتهم الجارية اليوم فقط وإرجاعهم جميعاً إلى المربع الأبيض؟");
+        if (!confirmVal) return;
+
+        const now = new Date();
+        const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+
+        // 1. تصفير الامتحانات السحابية الجارية حالياً للجميع
+        DB_ACTIVE_EXAMS = [];
+        localStorage.setItem('DB_ACTIVE_EXAMS', JSON.stringify(DB_ACTIVE_EXAMS));
+
+        // 2. تصفية ومسح كافة تقييمات اليوم المسجلة
+        DB_EVALS = DB_EVALS.filter(e => e.date !== todayStr);
+        localStorage.setItem('DB_EVALS', JSON.stringify(DB_EVALS));
+
+        await autoSaveAndSync();
+        renderSardDashboard();
+        updateResults();
+        showCustomAlert("تمت إعادة جميع الطلاب إلى وضع المربع الأبيض لم تسمع اليوم بنجاح.", "success");
+    }
+
+    // دوال النوافذ والمنبهات المخصصة
+    function showCustomAlert(msg, type = "info") {
+        const toast = document.getElementById('customToast');
+        if (!toast) return;
+        toast.innerText = msg;
+        if (type === "success") toast.style.backgroundColor = "var(--s)";
+        else if (type === "error") toast.style.backgroundColor = "var(--d)";
+        else toast.style.backgroundColor = "var(--a)";
+        toast.style.display = "block";
+        toast.style.opacity = "1";
+        setTimeout(() => {
+            toast.style.opacity = "0";
+            setTimeout(() => { toast.style.display = "none"; }, 400);
+        }, 3000);
+    }
+
+    // واجهة التحقق المخصصة لتجنب النوافذ المنبثقة الافتراضية للمتصفح
+    function showCustomConfirm(title, body) {
+        return new Promise((resolve) => {
+            const modal = document.getElementById('customModal');
+            const mTitle = document.getElementById('customModalTitle');
+            const mBody = document.getElementById('customModalBody');
+            const mInput = document.getElementById('customModalInput');
+            const confirmBtn = document.getElementById('customModalConfirm');
+            const cancelBtn = document.getElementById('customModalCancel');
+
+            mTitle.innerText = title;
+            mBody.innerText = body;
+            mInput.style.display = "none";
+            modal.style.display = "flex";
+
+            confirmBtn.onclick = () => { modal.style.display = "none"; resolve(true); };
+            cancelBtn.onclick = () => { modal.style.display = "none"; resolve(false); };
+        });
+    }
+
+    function showCustomPrompt(title, placeholder, isPassword = false) {
+        return new Promise((resolve) => {
+            const modal = document.getElementById('customModal');
+            const mTitle = document.getElementById('customModalTitle');
+            const mBody = document.getElementById('customModalBody');
+            const mInput = document.getElementById('customModalInput');
+            const confirmBtn = document.getElementById('customModalConfirm');
+            const cancelBtn = document.getElementById('customModalCancel');
+
+            mTitle.innerText = title;
+            mBody.innerText = "";
+            mInput.value = "";
+            mInput.placeholder = placeholder;
+            mInput.type = isPassword ? "password" : "text";
+            mInput.style.display = "block";
+            modal.style.display = "flex";
+
+            confirmBtn.onclick = () => { modal.style.display = "none"; resolve(mInput.value); };
+            cancelBtn.onclick = () => { modal.style.display = "none"; resolve(null); };
+        });
+    }
+</script>
+
+</body>
+</html>
